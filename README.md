@@ -1,24 +1,101 @@
 # QA Sales Call Analyzer
 
-Analyzes sales call recordings using Gemini AI. Evaluates intro quality, close technique, objection handling, documentation, and calculates DARTS score.
+Automated QA analysis tool for sales call recordings. Upload audio or paste transcripts, and get structured feedback on intro quality, objection handling, close technique, and documentation.
+
+## Features
+
+- **Audio Upload** - Supports .mp3, .wav, .m4a, .ogg formats
+- **Transcript Paste** - Analyze text transcripts directly
+- **Qualifiers Input** - Add KDMs, timeline, disqualifiers for context
+- **Structured Analysis** - Introduction, Relevant Topics, Close, Objection Handling, Opportunity, Documentation
+- **History** - View past 50 analyses with full results
+- **Edit & Re-analyze** - Modify results and reprocess with Gemini
+- **Copy to Clipboard** - One-click copy of analysis results
+- **Google Sheets Storage** - All results saved automatically
+- **Password Protected** - Session-based authentication
 
 ## Tech Stack
 
-- **Framework:** FastHTML
-- **AI:** Gemini 1.5 Flash
+- **Framework:** [FastHTML](https://fastht.ml)
+- **AI:** Gemini 2.0 Flash
 - **Storage:** Google Sheets
 - **Hosting:** Render (free tier)
 
-## Local Development
+## Project Structure
+
+```
+├── main.py           # Routes and server
+├── config.py         # CSS, env vars, QA prompt
+├── components.py     # UI components
+├── handlers/
+│   ├── gemini.py     # Gemini API integration
+│   └── sheets.py     # Google Sheets storage
+├── requirements.txt
+└── .env
+```
+
+## Setup
+
+### 1. Clone and Install
 
 ```bash
-# Set environment variables
-export SESSION_PASSWORD=yourpassword
-export SESSION_SECRET=$(python -c "import secrets; print(secrets.token_hex(32))")
-export GOOGLE_API_KEY=your-gemini-api-key
-export GOOGLE_SERVICE_ACCOUNT_JSON='{"type":"service_account",...}'
+git clone https://github.com/DadiiLon/qa-calls-gemini.git
+cd qa-calls-gemini
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
 
-# Run
+### 2. Get Gemini API Key
+
+1. Go to [Google AI Studio](https://aistudio.google.com/apikey)
+2. Click "Create API Key"
+3. Copy the key
+
+### 3. Set Up Google Sheets
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
+2. Create a new project (or select existing)
+3. Enable the **Google Sheets API**
+4. Go to **APIs & Services > Credentials**
+5. Click **Create Credentials > Service Account**
+6. Name it (e.g., `qa-sheets-writer`)
+7. Click **Done**, then click the service account email
+8. Go to **Keys > Add Key > Create new key > JSON**
+9. Download the JSON file
+
+### 4. Create Google Sheet
+
+1. Create a new Google Sheet named exactly: `QA Results`
+2. Add headers in row 1: `Timestamp | Filename | Full Result`
+3. Share the sheet with the service account email (found in JSON file under `client_email`)
+4. Give **Editor** access
+
+### 5. Create .env File
+
+```bash
+# Authentication
+SESSION_PASSWORD=your-login-password
+SESSION_SECRET=generate-64-char-hex-below
+
+# Gemini API
+GOOGLE_API_KEY=your-gemini-api-key
+
+# Google Sheets (paste entire JSON as single line)
+GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"..."}
+
+# QA Analysis Prompt (your scorecard template)
+QA_PROMPT=Your QA analysis prompt here...
+```
+
+Generate session secret:
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+### 6. Run Locally
+
+```bash
 python main.py
 ```
 
@@ -26,23 +103,47 @@ Visit `http://localhost:5001`
 
 ## Environment Variables
 
-| Variable                      | Description                                                         |
-| ----------------------------- | ------------------------------------------------------------------- |
-| `SESSION_PASSWORD`            | Login password                                                      |
-| `SESSION_SECRET`              | 64-char hex for session encryption                                  |
-| `GOOGLE_API_KEY`              | Gemini API key from [AI Studio](https://aistudio.google.com/apikey) |
-| `GOOGLE_SERVICE_ACCOUNT_JSON` | Service account JSON for Google Sheets                              |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SESSION_PASSWORD` | Yes | Login password for the app |
+| `SESSION_SECRET` | Yes | 64-char hex for session encryption |
+| `GOOGLE_API_KEY` | Yes | Gemini API key from AI Studio |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | Yes | Service account JSON (single line) |
+| `QA_PROMPT` | Yes | Your QA scorecard/analysis prompt |
+| `PORT` | No | Server port (default: 5001) |
 
 ## Render Deployment
 
-1. Connect GitHub repo
-2. Set environment variables above
-3. Build command: `pip install -r requirements.txt`
-4. Start command: `python main.py`
+1. Push code to GitHub
+2. Connect repo to [Render](https://render.com)
+3. Create **Web Service**
+4. Set environment variables (above)
+5. Build command: `pip install -r requirements.txt`
+6. Start command: `python main.py`
 
 ## Keep-Alive (Prevent Cold Boots)
 
-Use [cron-job.org](https://cron-job.org) to ping `/health` endpoint:
+Render free tier sleeps after 15 min of inactivity. Use [cron-job.org](https://cron-job.org) to ping the health endpoint:
 
-- Expression: `*/5 14-23,0-2 * * *` (10 PM - 10 AM Manila time)
-- Timezone: UTC
+| Setting | Value |
+|---------|-------|
+| URL | `https://your-app.onrender.com/health` |
+| Schedule | Every 5 minutes |
+| Timezone | Your preference |
+
+For Manila working hours only (10 PM - 10 AM):
+```
+*/5 22-23,0-10 * * *
+```
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Main app (requires auth) |
+| `/login` | GET/POST | Login page |
+| `/logout` | GET | End session |
+| `/health` | GET | Health check (no auth) |
+| `/process_call` | POST | Analyze audio/transcript |
+| `/tab/history` | GET | Load history grid |
+| `/result/{timestamp}` | GET | View specific result |
