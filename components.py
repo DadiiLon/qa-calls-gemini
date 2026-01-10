@@ -195,7 +195,7 @@ def render_history_card(record: dict, idx: int):
     darts_score = extract_darts_score(full_result)
 
     return Div(cls="card history-item",
-               hx_get=f"/result/{timestamp.replace(' ', '_').replace(':', '-')}",
+               hx_get=f"/result/{timestamp.replace(' ', '_').replace(':', '~')}",
                hx_target="#tab-content",
                hx_swap="innerHTML")(
         Div(cls="card-header")(

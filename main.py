@@ -97,7 +97,7 @@ def tab_history():
 @rt("/result/{timestamp}")
 def view_result(timestamp: str):
     try:
-        timestamp_clean = timestamp.replace('_', ' ').replace('-', ':')
+        timestamp_clean = timestamp.replace('_', ' ').replace('~', ':')
         record = find_record_by_timestamp(timestamp_clean)
 
         if not record:
