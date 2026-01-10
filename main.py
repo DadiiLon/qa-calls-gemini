@@ -334,8 +334,27 @@ def render_process_tab():
                     hx_indicator="#loading-spinner",
                     enctype="multipart/form-data"
                 )(
+                    # Audio upload
+                    Label("Audio File", style="font-weight: 500; display: block; margin-bottom: 4px;"),
                     Input(type="file", name="audio", accept="audio/*", required=True),
-                    Button("Analyze Call", type="submit")
+
+                    # Qualifiers section
+                    Div(style="margin-top: 16px;")(
+                        Div(style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;")(
+                            Label("Qualifiers", style="font-weight: 500;"),
+                            Label(style="font-size: 13px; color: var(--text-muted); cursor: pointer;")(
+                                Input(type="checkbox", name="skip_qualifiers", id="skip-qual",
+                                      style="margin-right: 6px;",
+                                      onchange="document.getElementById('qualifiers-input').disabled = this.checked; document.getElementById('qualifiers-input').style.opacity = this.checked ? '0.5' : '1';"),
+                                "Skip qualifiers"
+                            )
+                        ),
+                        Textarea(name="qualifiers", id="qualifiers-input",
+                                 placeholder="Paste qualifiers here:\n• KDMs (Key Decision Makers)\n• Timeline expectations\n• Disqualifiers\n• Company-specific criteria",
+                                 style="min-height: 120px;")
+                    ),
+
+                    Button("Analyze Call", type="submit", style="margin-top: 12px;")
                 )
             ),
             Div(cls="card-footer")(
@@ -568,7 +587,7 @@ def view_result(timestamp: str):
         )
 
 @rt("/process_audio", methods=["POST"])
-async def process_audio(audio: UploadFile, sess):
+async def process_audio(audio: UploadFile, sess, qualifiers: str = "", skip_qualifiers: str = None):
     try:
         # Read audio bytes
         audio_bytes = await audio.read()
@@ -577,6 +596,17 @@ async def process_audio(audio: UploadFile, sess):
         ext = audio.filename.lower().split('.')[-1]
         mime_map = {'mp3': 'audio/mp3', 'wav': 'audio/wav', 'ogg': 'audio/ogg', 'm4a': 'audio/mp4'}
         mime_type = mime_map.get(ext, 'audio/mpeg')
+
+        # Build qualifiers context for Gemini
+        qualifiers_context = ""
+        if skip_qualifiers != "on" and qualifiers.strip():
+            qualifiers_context = f"""
+
+## QUALIFIERS TO CHECK AGAINST:
+{qualifiers.strip()}
+
+IMPORTANT: Use these qualifiers to verify appointment qualification in Section 7. Check if the prospect matches the qualifiers (KDMs, timeline, size thresholds) and note any disqualifiers mentioned.
+"""
 
         # Call Gemini with QA prompt or use mock data
         if gemini_client is None:
@@ -633,10 +663,12 @@ async def process_audio(audio: UploadFile, sess):
 
 *This is MOCK data for UI testing (no API key)*"""
         else:
+            # Combine QA prompt with qualifiers context
+            full_prompt = QA_PROMPT + qualifiers_context
             response = gemini_client.models.generate_content(
                 model='gemini-2.0-flash',
                 contents=[
-                    QA_PROMPT,
+                    full_prompt,
                     types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
                 ]
             )
