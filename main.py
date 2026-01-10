@@ -48,26 +48,21 @@ def health():
 
 # ============ ROUTES ============
 
-@rt("/login")
-def get_login():
-    return Titled("QA Tool - Login",
-        Form(method="post")(
-            Input(name="password", type="password", placeholder="Password", required=True),
-            Button("Login")
+@rt("/login", methods=["GET", "POST"])
+def login(req, sess, password: str = None):
+    if req.method == "POST":
+        if password == SESSION_PASSWORD:
+            sess['auth'] = "authenticated"
+            return RedirectResponse('/', status_code=303)
+        return Titled("QA Tool - Login",
+            P(f"Invalid password", style="color: red"),
+            Form(method="post", action="/login")(
+                Input(name="password", type="password", placeholder="Password", required=True),
+                Button("Login")
+            )
         )
-    )
-
-@rt("/login", methods=["POST"])
-async def post_login(req, sess):
-    form = await req.form()
-    password = form.get("password", "")
-    print(f"DEBUG: entered='{password}' expected='{SESSION_PASSWORD}'")
-    if password == SESSION_PASSWORD:
-        sess['auth'] = "authenticated"
-        return RedirectResponse('/', status_code=303)
     return Titled("QA Tool - Login",
-        P("Invalid password", style="color: red"),
-        Form(method="post")(
+        Form(method="post", action="/login")(
             Input(name="password", type="password", placeholder="Password", required=True),
             Button("Login")
         )
