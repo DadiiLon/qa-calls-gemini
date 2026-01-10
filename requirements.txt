@@ -1,0 +1,5 @@
+python-fasthtml
+google-genai
+uvicorn
+gspread
+google-auth
