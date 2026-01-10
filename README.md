@@ -68,8 +68,32 @@ A "cron job" is just an automated task that runs on a schedule. We'll use it to 
 
 Now your app stays awake during the hours you set.
 
-**Optional:** To only keep it awake during work hours (saves resources):
-- Manila working hours (10 PM - 10 AM): `*/5 22-23,0-10 * * *`
+### Understanding Cron Schedules (Optional)
+
+By default, "Every 5 minutes" keeps your app awake 24/7. But you can customize when it runs using a cron expression.
+
+A cron expression has 5 parts:
+```
+*     *     *     *     *
+│     │     │     │     │
+│     │     │     │     └── Day of week (0-6, Sunday=0)
+│     │     │     └──────── Month (1-12)
+│     │     └────────────── Day of month (1-31)
+│     └──────────────────── Hour (0-23)
+└────────────────────────── Minute (0-59)
+```
+
+**Example:** `*/5 22-23,0-10 * * *` means:
+- `*/5` = Every 5 minutes
+- `22-23,0-10` = During hours 22-23 (10-11 PM) AND 0-10 (12 AM - 10 AM)
+- `* * *` = Every day, every month, every day of week
+
+So this pings your app every 5 minutes from 10 PM to 10 AM Manila time - perfect for night shift work hours.
+
+**Other examples:**
+- `*/5 * * * *` = Every 5 minutes, 24/7
+- `*/5 9-17 * * *` = Every 5 minutes, 9 AM to 5 PM only
+- `*/5 9-17 * * 1-5` = Every 5 minutes, 9 AM to 5 PM, Monday to Friday only
 
 ---
 
