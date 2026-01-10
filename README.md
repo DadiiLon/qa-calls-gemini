@@ -15,14 +15,14 @@ Automated QA analysis tool for sales call recordings. Upload audio or paste tran
 
 ## Tech Stack
 
-- **Framework:** [FastHTML](https://fastht.ml)
+- **Framework:** <a href="https://fastht.ml" target="_blank">FastHTML</a>
 - **AI:** Gemini 2.0 Flash
 - **Storage:** Google Sheets
 - **Hosting:** Render (free tier)
 
 ## Hosting on Render (Free)
 
-This app is designed to run on [Render's free tier](https://render.com). It's completely free and perfect for small tools like this.
+This app is designed to run on <a href="https://render.com" target="_blank">Render's free tier</a>. It's completely free and perfect for small tools like this.
 
 ### Cold Starts
 
@@ -33,7 +33,7 @@ To prevent this, we use a cron job to ping the app every 5 minutes and keep it a
 ### Deploy to Render
 
 1. Push code to GitHub
-2. Go to [Render](https://render.com) and connect your GitHub repo
+2. Go to <a href="https://render.com" target="_blank">Render</a> and connect your GitHub repo
 3. Create a new **Web Service**
 4. Configure:
    - **Build command:** `pip install -r requirements.txt`
@@ -43,9 +43,9 @@ To prevent this, we use a cron job to ping the app every 5 minutes and keep it a
 
 ### Keep-Alive with Cron
 
-Use [cron-job.org](https://cron-job.org) (free) to ping your app and prevent cold starts:
+Use <a href="https://cron-job.org" target="_blank">cron-job.org</a> (free) to ping your app and prevent cold starts:
 
-1. Create a free account at [cron-job.org](https://console.cron-job.org/signup)
+1. Create a free account at <a href="https://console.cron-job.org/signup" target="_blank">cron-job.org</a>
 2. Create a new cron job:
    - **URL:** `https://your-app.onrender.com/health`
    - **Schedule:** Every 5 minutes
@@ -107,13 +107,13 @@ python -c "import secrets; print(secrets.token_hex(32))"
 
 ### Get Gemini API Key
 
-1. Go to [Google AI Studio](https://aistudio.google.com/apikey)
+1. Go to <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a>
 2. Click "Create API Key"
 3. Copy the key
 
 ### Set Up Google Sheets Service Account
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
+1. Go to <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a>
 2. Create a new project (or select existing)
 3. Enable the **Google Sheets API**
 4. Go to **APIs & Services > Credentials**
@@ -147,10 +147,8 @@ python -c "import secrets; print(secrets.token_hex(32))"
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/` | GET | Main app (requires auth) |
-| `/login` | GET/POST | Login page |
-| `/logout` | GET | End session |
-| `/health` | GET | Health check (no auth) |
+| `/` | GET | Main app |
+| `/health` | GET | Health check |
 | `/process_call` | POST | Analyze audio/transcript |
 | `/tab/history` | GET | Load history grid |
 | `/result/{timestamp}` | GET | View specific result |
