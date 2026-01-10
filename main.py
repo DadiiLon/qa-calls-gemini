@@ -101,7 +101,7 @@ async def process_audio(audio: UploadFile):
 
         # Call Gemini with QA prompt
         response = gemini_client.models.generate_content(
-            model='gemini-1.5-flash',
+            model='gemini-2.0-flash',
             contents=[
                 QA_PROMPT,
                 types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
