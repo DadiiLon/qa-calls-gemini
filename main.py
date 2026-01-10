@@ -135,7 +135,8 @@ async def process_audio(audio: UploadFile):
         )
 
 # ============ QA PROMPT ============
-QA_PROMPT = """You are a Quality Assurance Analyst responsible for evaluating SALES call recordings for appointment setting.
+# Load from environment variable (keeps scorecard private)
+QA_PROMPT = os.environ.get("QA_PROMPT", """You are a Quality Assurance Analyst responsible for evaluating SALES call recordings for appointment setting.
 
 Analyze this audio recording and provide a structured analysis based on the categories below.
 All required elements must be verified and supported by transcript evidence.
@@ -311,7 +312,7 @@ Address: [Done / Not confirmed]
 
 ---
 
-Now analyze the audio recording:"""
+Now analyze the audio recording:""")
 
 # ============ START SERVER ============
 if __name__ == '__main__':
