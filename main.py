@@ -58,7 +58,9 @@ def get_login():
     )
 
 @rt("/login", methods=["POST"])
-def post_login(sess, password: str):
+async def post_login(req, sess):
+    form = await req.form()
+    password = form.get("password", "")
     print(f"DEBUG: entered='{password}' expected='{SESSION_PASSWORD}'")
     if password == SESSION_PASSWORD:
         sess['auth'] = "authenticated"
