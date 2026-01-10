@@ -59,6 +59,7 @@ def get_login():
 
 @rt("/login", methods=["POST"])
 def post_login(sess, password: str):
+    print(f"DEBUG: entered='{password}' expected='{SESSION_PASSWORD}'")
     if password == SESSION_PASSWORD:
         sess['auth'] = "authenticated"
         return RedirectResponse('/', status_code=303)

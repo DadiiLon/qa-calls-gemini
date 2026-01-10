@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 .DS_Store
 QA_PROMPT.txt
+*.json
