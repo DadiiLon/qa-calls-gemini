@@ -324,6 +324,29 @@ button:disabled {
     background: var(--success);
 }
 
+/* Upload button */
+.upload-btn {
+    width: 100%;
+    padding: 14px 20px;
+    background: #151515;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.upload-btn:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+    box-shadow: 0 4px 12px rgba(215, 119, 87, 0.2);
+}
+.upload-btn.file-selected {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: var(--success);
+    color: var(--text-primary);
+}
+
 /* Toast notification */
 .toast {
     position: fixed;
@@ -518,6 +541,23 @@ def render_process_tab():
 
     // Run validation on page load
     document.addEventListener('DOMContentLoaded', validateForm);
+
+    function triggerFileInput() {
+        document.getElementById('audio-input').click();
+    }
+
+    function updateFileButton() {
+        var input = document.getElementById('audio-input');
+        var btn = document.getElementById('upload-btn');
+        if (input.files && input.files.length > 0) {
+            btn.textContent = input.files[0].name;
+            btn.classList.add('file-selected');
+        } else {
+            btn.textContent = 'Upload Audio';
+            btn.classList.remove('file-selected');
+        }
+        validateForm();
+    }
     """
 
     return Div(
@@ -555,9 +595,10 @@ def render_process_tab():
 
                     # Audio upload section
                     Div(id="audio-section")(
-                        Label("Audio File", style="font-weight: 500; display: block; margin-bottom: 4px;"),
                         Input(type="file", name="audio", id="audio-input", accept="audio/*",
-                              onchange="validateForm()")
+                              onchange="updateFileButton()", style="display: none;"),
+                        Button("Upload Audio", type="button", id="upload-btn", cls="upload-btn",
+                               onclick="triggerFileInput()")
                     ),
 
                     # Transcript paste section (hidden by default)
@@ -581,16 +622,12 @@ def render_process_tab():
                             )
                         ),
                         Textarea(name="qualifiers", id="qualifiers-input",
-                                 placeholder="Paste qualifiers here:\n• KDMs (Key Decision Makers)\n• Timeline expectations\n• Disqualifiers\n• Company-specific criteria",
                                  style="min-height: 120px;",
                                  oninput="validateForm()")
                     ),
 
                     Button("Analyze Call", type="submit", id="analyze-btn", disabled=True, style="margin-top: 12px;")
                 )
-            ),
-            Div(cls="card-footer")(
-                P("Audio formats: MP3, WAV, OGG, M4A  •  Or paste an existing transcript", cls="info-text")
             )
         )
     )
