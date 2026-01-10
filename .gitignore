@@ -4,3 +4,9 @@ __pycache__/
 .DS_Store
 QA_PROMPT.txt
 *.json
+*.mp3
+*.wav
+*.m4a
+*.ogg
+.playwright-mcp/
+venv/
