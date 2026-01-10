@@ -260,6 +260,53 @@ button:hover, .btn:hover { background: var(--primary-hover); }
     color: var(--text-muted);
 }
 
+/* Copy button */
+.btn-copy {
+    background: #6b7280;
+    padding: 6px 12px;
+    font-size: 13px;
+}
+.btn-copy:hover { background: #4b5563; }
+.btn-copy.copied {
+    background: var(--success);
+}
+
+/* Toast notification */
+.toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--success);
+    color: white;
+    padding: 12px 20px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+.toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Processing card */
+.processing-text {
+    text-align: center;
+    padding: 40px 20px;
+}
+.processing-text p {
+    margin-top: 16px;
+    font-size: 15px;
+    color: var(--text-muted);
+}
+.processing-text .spinner {
+    margin: 0 auto;
+}
+
 /* Mobile responsive */
 @media (max-width: 640px) {
     .container { padding: 16px 12px; }
@@ -363,20 +410,37 @@ def render_process_tab():
         )
     )
 
-def render_results_card(result_text, filename, timestamp, darts_score):
+def render_results_card(result_text, filename, timestamp, darts_score, show_saved_toast=False):
     """Render the results card after analysis"""
+    # JavaScript for copy functionality
+    copy_js = """
+    var text = document.getElementById('result-text-content').innerText;
+    navigator.clipboard.writeText(text).then(function() {
+        var btn = document.getElementById('copy-btn');
+        btn.innerText = '✓ Copied';
+        btn.classList.add('copied');
+        setTimeout(function() {
+            btn.innerText = 'Copy';
+            btn.classList.remove('copied');
+        }, 2000);
+    });
+    """
+
     return Div(
         Div(cls="card")(
             Div(cls="card-header")(
                 H3("Analysis Complete"),
-                Span(f"{darts_score}/11", cls="darts-badge")
+                Div(
+                    Button("Copy", id="copy-btn", cls="btn-copy", onclick=copy_js),
+                    Span(f"{darts_score}/11", cls="darts-badge", style="margin-left: 8px;")
+                )
             ),
             Div(cls="card-body scrollable")(
                 Div(cls="metadata")(
                     P(Strong("File: "), filename),
                     P(Strong("Analyzed: "), timestamp)
                 ),
-                Div(result_text, cls="result-text")
+                Div(result_text, cls="result-text", id="result-text-content")
             ),
             Div(cls="card-footer")(
                 Button("Upload Another Call",
@@ -390,7 +454,11 @@ def render_results_card(result_text, filename, timestamp, darts_score):
                        hx_swap="innerHTML",
                        cls="btn-secondary")
             )
-        )
+        ),
+        # Toast notification
+        Div("✓ Saved to history", id="save-toast", cls="toast show" if show_saved_toast else "toast"),
+        # Auto-hide toast after 3 seconds
+        Script("setTimeout(function(){ var t = document.getElementById('save-toast'); if(t) t.classList.remove('show'); }, 3000);") if show_saved_toast else None
     )
 
 def render_history_card(record, idx):
@@ -460,9 +528,12 @@ def home(auth):
         Title("QA Call Analyzer"),
         Div(cls="container")(
             H1("QA Call Analyzer"),
-            # Loading spinner overlay
+            # Loading spinner overlay with processing text
             Div(id="loading-spinner", cls="spinner-overlay htmx-indicator")(
-                Div(cls="spinner")
+                Div(cls="processing-text")(
+                    Div(cls="spinner"),
+                    P("Processing with Gemini 2.0 Flash...")
+                )
             ),
             # Tab navigation
             Div(cls="tabs")(
@@ -701,9 +772,9 @@ IMPORTANT: Use these qualifiers to verify appointment qualification in Section 7
         sess['last_result'] = result_text
         sess['last_filename'] = audio.filename
 
-        # Extract DARTS score and return results card
+        # Extract DARTS score and return results card with toast
         darts_score = extract_darts_score(result_text)
-        return render_results_card(result_text, audio.filename, timestamp, darts_score)
+        return render_results_card(result_text, audio.filename, timestamp, darts_score, show_saved_toast=True)
 
     except Exception as e:
         return Div(cls="card")(
@@ -809,7 +880,7 @@ async def reanalyze(edited_text: str, sess):
         sess['last_filename'] = filename
 
         darts_score = extract_darts_score(result_text)
-        return render_results_card(result_text, filename, timestamp, darts_score)
+        return render_results_card(result_text, filename, timestamp, darts_score, show_saved_toast=True)
 
     except Exception as e:
         return Div(cls="card")(
