@@ -1,4 +1,5 @@
 python-fasthtml
+python-dotenv
 google-genai
 uvicorn
 gspread

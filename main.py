@@ -1,4 +1,7 @@
 from fasthtml.common import *
+from dotenv import load_dotenv
+load_dotenv()  # Load .env before other imports that need env vars
+
 from google import genai
 from google.genai import types
 from starlette.responses import RedirectResponse
@@ -260,13 +263,7 @@ button:disabled {
 .htmx-request.htmx-indicator { display: block; }
 
 .spinner-overlay {
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.85);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
+    display: none;
 }
 
 .spinner {
@@ -571,8 +568,8 @@ def render_process_tab():
                     hx_post="/process_call",
                     hx_target="#tab-content",
                     hx_swap="innerHTML",
-                    hx_indicator="#loading-spinner",
-                    enctype="multipart/form-data"
+                    enctype="multipart/form-data",
+                    **{"hx-on::before-request": "document.getElementById('tab-content').innerHTML='<div class=\"card\"><div class=\"card-body\"><div class=\"processing-text\"><div class=\"spinner\"></div><p>Processing with Gemini 2.0 Flash...</p></div></div></div>'"}
                 )(
                     # Input mode selector
                     Div(style="margin-bottom: 16px;")(
@@ -652,10 +649,7 @@ def render_results_card(result_text, filename, timestamp, darts_score, show_save
         Div(cls="card")(
             Div(cls="card-header")(
                 H3("Analysis Complete"),
-                Div(
-                    Button("Copy", id="copy-btn", cls="btn-copy", onclick=copy_js),
-                    Span(f"{darts_score}/11", cls="darts-badge", style="margin-left: 8px;")
-                )
+                Button("Copy", id="copy-btn", cls="btn-copy", onclick=copy_js)
             ),
             Div(cls="card-body scrollable")(
                 Div(cls="metadata")(
@@ -696,8 +690,7 @@ def render_history_card(record, idx):
                hx_target="#tab-content",
                hx_swap="innerHTML")(
         Div(cls="card-header")(
-            Span(filename, cls="filename"),
-            Span(f"{darts_score}/11", cls="darts-badge")
+            Span(filename, cls="filename")
         ),
         Div(cls="card-body")(
             P(timestamp, cls="timestamp"),
@@ -856,8 +849,7 @@ def view_result(timestamp: str):
         return Div(
             Div(cls="card")(
                 Div(cls="card-header")(
-                    H3("Analysis Details"),
-                    Span(f"{darts_score}/11", cls="darts-badge")
+                    H3("Analysis Details")
                 ),
                 Div(cls="card-body scrollable")(
                     Div(cls="metadata")(
@@ -1146,183 +1138,7 @@ async def reanalyze(edited_text: str, sess):
 
 # ============ QA PROMPT ============
 # Load from environment variable (keeps scorecard private)
-QA_PROMPT = os.environ.get("QA_PROMPT", """You are a Quality Assurance Analyst responsible for evaluating SALES call recordings for appointment setting.
-
-Analyze this audio recording and provide a structured analysis based on the categories below.
-All required elements must be verified and supported by transcript evidence.
-
-⚠️ CRITICAL: Pay special attention to tentative meetings and accurately identify KDM vs Influencers.
-
----
-
-## MANDATORY CHECKS (apply to ALL calls):
-- Rep stated the call is being recorded
-- Rep explicitly said "accept" when confirming meeting (NO substitutes allowed - must use exact word "accept")
-
----
-
-## 1. INTRODUCTION
-
-Mark ONLY ONE section below (Non-Follow Up OR Follow-Up):
-
-### A. NON-FOLLOW UP CALL
-- RLM Stated: [Done / Not Done / N/A]
-- Value Differentiator: [Done / Not Done / N/A]
-- Objection Takeaway: [Done / Not Done / N/A]
-- 1st Open-Ended Question: [Done / Not Done / N/A]
-
-### B. FOLLOW-UP CALL (any succeeding call after a pitch or contact with the KDM)
-- RLM Stated: [Done / Not Done / N/A]
-- Recap (previous conversation summarized): [Done / Not Done / N/A]
-- Reintroduce with Value: [Done / Not Done / N/A]
-- Recommend / Reopen: [Done / Not Done / N/A]
-
----
-
-## 2. RELEVANT TOPICS
-
-⚠️ Questions MUST be open-ended.
-
-- Asked about services/capabilities: [Done / Not Done / N/A]
-- Asked about most consistent issue: [Done / Not Done / N/A]
-
----
-
-## 3. CLOSE
-
-- Assumed close with 2 suggested dates/times: [Done / Not Done / N/A]
-- Attempted to schedule within 5 business days (based on grading date): [Done / Not Done / N/A]
-- Meeting Date & Time Confirmed: [Done / Not Done / N/A]
-- Meeting Type (In-Person / Virtual / Phone): [Done / Not Done / N/A]
-
----
-
-## 4. OBJECTION HANDLING (score only when applicable)
-
-- Used "Feel, Felt, Found": [Done / Not Done / N/A]
-- Used "Worst Case Scenario": [Done / Not Done / N/A]
-- Count number of objections: [X objections]
-
----
-
-## 5. OPPORTUNITY QUALITY
-
-- Followed client scheduling preferences: [Done / Not Done / N/A]
-- Asked Golden Question verbatim or similar version:
-  "If you see value after this meeting, what does the typical timeline and decision-making process look like?"
-  [Done / Not Done / N/A]
-- Asked about contract end date / reevaluation time: [Done / Not Done / N/A]
-
----
-
-## 6. DOCUMENTATION
-
-- Prospect explicitly asked to "accept" invite (exact wording required): [Done / Not Done / N/A]
-
-Contact Info Verified:
-- First & Last Name: [Done / Not Done]
-- Phone Number: [Done / Not Done]
-- Email Address: [Done / Not Done]
-- Complete Address: [Done / Not Done]
-- Position/Job Title: [Done / Not Done]
-
----
-
-## 7. APPOINTMENT QUALIFICATION
-
-- Qualified appointment? [Yes / No]
-- If No, explain reason (ex: below size threshold, public sector, not building owner, etc.)
-- List all Qualifiers checked: [...]
-- List all Disqualifiers checked: [...]
-- Confirm specific date/time of appointment: [...]
-- Meeting type: [In-person / Virtual / Phone]
-
----
-
-## 8. DECISION MAKER ASSESSMENT
-
-- Prospect title and role identified: [...]
-- Classification: [KDM / Influencer]
-
----
-
-## 9. MEETING PURPOSE & TIMELINE
-
-- Agenda stated by rep: [Done / Not Done]
-- Immediate need or interest mentioned: [Yes / No + details]
-
-Project timeline classified as:
-- [0-6 months / 6-12 months / 12+ months]
-
----
-
-## 10. DARTS SCORE
-
-Provide score for each category with justification:
-
-**D = Desire to Meet:**
-- 2 = No Objection
-- 1 = Two or less objections
-- 0 = Three plus objections
-Score: [X] – Reason: [...]
-
-**A = Authority:**
-- 2 = Final KDM
-- 1 = Influencer
-- 0 = Neither
-Score: [X] – Reason: [...]
-
-**R = Revenue Opportunity:**
-- 3 = Immediate Need
-- 2 = Interest
-- 1 = Willing to Meet
-- 0 = No Interest
-Score: [X] – Reason: [...]
-
-**T = Timeliness:**
-- 2 = 0-6 months
-- 1 = 6-12 months
-- 0 = 12+ months
-Score: [X] – Reason: [...]
-
-**S = Size:**
-- 2 = Huge Opportunity
-- 1 = Qualified
-- 0 = Not Qualified
-Score: [X] – Reason: [...]
-
-**TOTAL DARTS SCORE: [X/11]**
-
----
-
-## 11. FEEDBACK (REQUIRED)
-
-Follow this exact format:
-
-**Intro:**
-[Specific feedback on RLM, Value Differentiator, Objection Takeaway, Open-Ended Question]
-
-**Relevant Topics:**
-[Feedback on services/capabilities question and consistent issues question - note if open-ended]
-
-**Close:**
-[Feedback on assumptive close with two dates, within 5 business days check]
-
-**Objection Handling:**
-[Feedback on Feel/Felt/Found and Worst Case Scenario usage]
-
-**Opportunity:**
-[Feedback on Golden Question, contract end date, scheduling preferences]
-
-**Documentation:**
-Email: [Done / Not confirmed]
-Phone: [Done / Not confirmed]
-Title: [Done / Not confirmed]
-Address: [Done / Not confirmed]
-
----
-
-Now analyze the audio recording:""")
+QA_PROMPT = os.environ.get("QA_PROMPT", "QA_PROMPT not configured in .env")
 
 # ============ START SERVER ============
 if __name__ == '__main__':
