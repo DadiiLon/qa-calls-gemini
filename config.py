@@ -3,8 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ============ AUTH CONFIG ============
-SESSION_PASSWORD = os.environ.get("SESSION_PASSWORD", "changeme")
+# ============ SESSION CONFIG ============
 SESSION_SECRET = os.environ.get("SESSION_SECRET", "dev-secret-change-in-prod")
 
 # ============ QA PROMPT ============

@@ -12,7 +12,6 @@ Automated QA analysis tool for sales call recordings. Upload audio or paste tran
 - **Edit & Re-analyze** - Modify results and reprocess with Gemini
 - **Copy to Clipboard** - One-click copy of analysis results
 - **Google Sheets Storage** - All results saved automatically
-- **Password Protected** - Session-based authentication
 
 ## Tech Stack
 
@@ -93,7 +92,6 @@ Visit `http://localhost:5001`
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `SESSION_PASSWORD` | Yes | Login password for the app |
 | `SESSION_SECRET` | Yes | 64-char hex for session encryption |
 | `GOOGLE_API_KEY` | Yes | Gemini API key from AI Studio |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Yes | Service account JSON (single line) |

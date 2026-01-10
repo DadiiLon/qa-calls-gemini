@@ -13,9 +13,12 @@ def get_sheets_client():
     """Get Google Sheets client, or None for mock mode"""
     if not _has_credentials:
         return None
-    creds = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
-    gc = gspread.service_account_from_dict(creds)
-    return gc.open("QA Results").sheet1
+    try:
+        creds = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+        gc = gspread.service_account_from_dict(creds)
+        return gc.open("QA Results").sheet1
+    except Exception:
+        return None
 
 
 def save_result(timestamp: str, filename: str, result_text: str) -> bool:

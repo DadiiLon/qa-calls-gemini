@@ -1,10 +1,9 @@
 from fasthtml.common import *
-from starlette.responses import RedirectResponse
 from datetime import datetime
 import pytz
 import os
 
-from config import SESSION_PASSWORD, SESSION_SECRET, CSS
+from config import SESSION_SECRET, CSS
 from handlers import (
     analyze_audio, analyze_transcript, reanalyze_text, extract_darts_score,
     save_result, get_history, find_record_by_timestamp
@@ -14,23 +13,7 @@ from components import (
     render_edit_form, render_result_detail
 )
 
-# ============ AUTH SETUP ============
-login_redir = RedirectResponse('/login', status_code=303)
-
-
-def auth_before(req, sess):
-    auth = req.scope['auth'] = sess.get('auth', None)
-    if not auth:
-        return login_redir
-
-
-beforeware = Beforeware(
-    auth_before,
-    skip=[r'/favicon\.ico', r'/static/.*', '/login', '/health']
-)
-
 app, rt = fast_app(
-    before=beforeware,
     secret_key=SESSION_SECRET,
     hdrs=(
         Script(src="https://unpkg.com/htmx.org@1.9.10"),
@@ -45,47 +28,9 @@ def health():
     return {"status": "ok", "timestamp": datetime.now().isoformat()}
 
 
-# ============ AUTH ROUTES ============
-@rt("/login", methods=["GET", "POST"])
-def login(req, sess, password: str = None):
-    error_msg = None
-    if req.method == "POST":
-        if password == SESSION_PASSWORD:
-            sess['auth'] = "authenticated"
-            return RedirectResponse('/', status_code=303)
-        error_msg = "Invalid password"
-
-    return (
-        Title("QA Tool - Login"),
-        Div(cls="login-container")(
-            Div(cls="card login-card")(
-                Div(cls="card-header")(
-                    Div(
-                        H3("QA Call Analyzer"),
-                        P("Sign in to continue", cls="login-subtitle")
-                    )
-                ),
-                Div(cls="card-body")(
-                    P(error_msg, cls="error-text", style="margin-bottom: 12px; text-align: center;") if error_msg else None,
-                    Form(method="post", action="/login")(
-                        Input(name="password", type="password", placeholder="Enter password", required=True, style="margin-bottom: 16px;"),
-                        Button("Sign In", style="width: 100%;")
-                    )
-                )
-            )
-        )
-    )
-
-
-@rt("/logout")
-def logout(sess):
-    sess['auth'] = None
-    return RedirectResponse('/login', status_code=303)
-
-
 # ============ MAIN ROUTES ============
 @rt("/")
-def home(auth):
+def home():
     return (
         Title("QA Call Analyzer"),
         Div(cls="container")(
@@ -206,8 +151,8 @@ IMPORTANT: Use these qualifiers to verify appointment qualification in Section 7
             result_text = analyze_audio(audio_bytes, mime_type, qualifiers_context)
 
         # Generate timestamp
-        eastern = pytz.timezone('US/Eastern')
-        timestamp = datetime.now(eastern).strftime("%Y-%m-%d %I:%M:%S %p ET")
+        manila = pytz.timezone('Asia/Manila')
+        timestamp = datetime.now(manila).strftime("%Y-%m-%d %I:%M:%S %p PHT")
         darts_score = extract_darts_score(result_text)
 
         # Save to storage
@@ -256,8 +201,8 @@ async def reanalyze(edited_text: str, sess):
     try:
         result_text = reanalyze_text(edited_text)
 
-        eastern = pytz.timezone('US/Eastern')
-        timestamp = datetime.now(eastern).strftime("%Y-%m-%d %I:%M:%S %p ET")
+        manila = pytz.timezone('Asia/Manila')
+        timestamp = datetime.now(manila).strftime("%Y-%m-%d %I:%M:%S %p PHT")
         filename = "Re-analyzed"
         darts_score = extract_darts_score(result_text)
 
