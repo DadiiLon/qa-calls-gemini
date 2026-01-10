@@ -3,6 +3,7 @@ from google import genai
 from google.genai import types
 from starlette.responses import RedirectResponse
 from datetime import datetime
+import pytz
 import gspread
 import json
 import os
@@ -15,14 +16,16 @@ SESSION_SECRET = os.environ.get("SESSION_SECRET", "dev-secret-change-in-prod")
 # ============ CSS STYLES ============
 CSS = """
 :root {
-    --primary: #2563eb;
-    --primary-hover: #1d4ed8;
-    --bg: #f3f4f6;
-    --card-bg: #ffffff;
-    --border: #e5e7eb;
-    --text: #1f2937;
-    --text-muted: #6b7280;
-    --success: #10b981;
+    --primary: #3b82f6;
+    --primary-hover: #2563eb;
+    --bg: #0f0f0f;
+    --card-bg: #1a1a1a;
+    --card-bg-alt: #141414;
+    --border: #2a2a2a;
+    --border-light: #333;
+    --text: #e5e5e5;
+    --text-muted: #888;
+    --success: #22c55e;
     --error: #ef4444;
     --radius: 8px;
 }
@@ -54,7 +57,7 @@ h1 {
 .tabs {
     display: flex;
     gap: 4px;
-    border-bottom: 2px solid var(--border);
+    border-bottom: 1px solid var(--border);
     margin-bottom: 24px;
 }
 
@@ -62,8 +65,8 @@ h1 {
     padding: 12px 24px;
     background: none;
     border: none;
-    border-bottom: 3px solid transparent;
-    margin-bottom: -2px;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
     cursor: pointer;
     font-size: 15px;
     font-weight: 500;
@@ -71,7 +74,7 @@ h1 {
     transition: all 0.15s;
 }
 
-.tab:hover { color: var(--primary); }
+.tab:hover { color: var(--text); }
 .tab.active {
     color: var(--primary);
     border-bottom-color: var(--primary);
@@ -82,7 +85,6 @@ h1 {
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     margin-bottom: 20px;
 }
 
@@ -98,6 +100,7 @@ h1 {
     font-size: 18px;
     font-weight: 600;
     margin: 0;
+    color: var(--text);
 }
 
 .card-body { padding: 20px; }
@@ -109,10 +112,11 @@ h1 {
 .card-footer {
     padding: 16px 20px;
     border-top: 1px solid var(--border);
-    background: #fafafa;
+    background: var(--card-bg-alt);
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
+    border-radius: 0 0 var(--radius) var(--radius);
 }
 
 /* Form elements */
@@ -127,6 +131,27 @@ textarea {
     font-size: 14px;
     font-family: inherit;
     margin-bottom: 12px;
+    background: var(--card-bg-alt);
+    color: var(--text);
+}
+
+input[type="file"]::file-selector-button {
+    background: var(--border-light);
+    color: var(--text);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 12px;
+}
+
+input[type="file"]::file-selector-button:hover {
+    background: #444;
+}
+
+input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--primary);
 }
 
 textarea {
@@ -149,10 +174,16 @@ button, .btn {
 
 button:hover, .btn:hover { background: var(--primary-hover); }
 
-.btn-secondary {
-    background: #6b7280;
+button:disabled {
+    background: var(--border-light);
+    color: var(--text-muted);
+    cursor: not-allowed;
 }
-.btn-secondary:hover { background: #4b5563; }
+
+.btn-secondary {
+    background: var(--border-light);
+}
+.btn-secondary:hover { background: #444; }
 
 /* DARTS badge */
 .darts-badge {
@@ -172,7 +203,7 @@ button:hover, .btn:hover { background: var(--primary-hover); }
     border-bottom: 1px solid var(--border);
     font-size: 14px;
 }
-.metadata p { margin: 4px 0; }
+.metadata p { margin: 4px 0; color: var(--text-muted); }
 .metadata strong { color: var(--text); }
 
 /* Result text */
@@ -181,10 +212,11 @@ button:hover, .btn:hover { background: var(--primary-hover); }
     font-family: monospace;
     font-size: 13px;
     line-height: 1.5;
-    background: #f9fafb;
+    background: var(--card-bg-alt);
     padding: 16px;
     border-radius: var(--radius);
     border: 1px solid var(--border);
+    color: var(--text);
 }
 
 /* History grid */
@@ -194,13 +226,17 @@ button:hover, .btn:hover { background: var(--primary-hover); }
     gap: 16px;
 }
 
-.history-item { cursor: pointer; transition: box-shadow 0.15s; }
-.history-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.history-item { cursor: pointer; transition: all 0.15s; }
+.history-item:hover {
+    border-color: var(--border-light);
+    transform: translateY(-2px);
+}
 
 .history-item .filename {
     font-weight: 600;
     font-size: 14px;
     word-break: break-all;
+    color: var(--text);
 }
 
 .history-item .timestamp {
@@ -226,7 +262,7 @@ button:hover, .btn:hover { background: var(--primary-hover); }
 .spinner-overlay {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(255,255,255,0.8);
+    background: rgba(0,0,0,0.85);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -243,6 +279,23 @@ button:hover, .btn:hover { background: var(--primary-hover); }
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* History loading */
+.history-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+}
+.history-loading .spinner {
+    width: 40px;
+    height: 40px;
+}
+.history-loading p {
+    margin-top: 16px;
+    color: var(--text-muted);
+}
 
 /* Error state */
 .error-text { color: var(--error); }
@@ -262,11 +315,11 @@ button:hover, .btn:hover { background: var(--primary-hover); }
 
 /* Copy button */
 .btn-copy {
-    background: #6b7280;
+    background: var(--border-light);
     padding: 6px 12px;
     font-size: 13px;
 }
-.btn-copy:hover { background: #4b5563; }
+.btn-copy:hover { background: #444; }
 .btn-copy.copied {
     background: var(--success);
 }
@@ -282,7 +335,7 @@ button:hover, .btn:hover { background: var(--primary-hover); }
     border-radius: var(--radius);
     font-size: 14px;
     font-weight: 500;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
     opacity: 0;
     transform: translateY(20px);
     transition: all 0.3s ease;
@@ -305,6 +358,55 @@ button:hover, .btn:hover { background: var(--primary-hover); }
 }
 .processing-text .spinner {
     margin: 0 auto;
+}
+
+/* Login page */
+.login-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.login-card {
+    width: 100%;
+    max-width: 380px;
+}
+
+.login-card .card-header {
+    text-align: center;
+    padding: 32px 20px 24px;
+    border-bottom: none;
+}
+
+.login-card .card-header h3 {
+    font-size: 22px;
+}
+
+.login-card .card-body {
+    padding: 0 24px 32px;
+}
+
+.login-subtitle {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 14px;
+    margin-top: 8px;
+}
+
+/* Checkbox & Radio styling */
+input[type="checkbox"],
+input[type="radio"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary);
+    cursor: pointer;
+}
+
+/* Label styling */
+label {
+    color: var(--text);
 }
 
 /* Mobile responsive */
@@ -368,22 +470,104 @@ def extract_darts_score(text):
 # ============ COMPONENT BUILDERS ============
 def render_process_tab():
     """Render the upload card for the Process tab"""
+    # JavaScript for form validation and input mode switching
+    validation_js = """
+    function validateForm() {
+        var skipChecked = document.getElementById('skip-qual').checked;
+        var qualifiersText = document.getElementById('qualifiers-input').value.trim();
+        var analyzeBtn = document.getElementById('analyze-btn');
+        var inputMode = document.querySelector('input[name="input_mode"]:checked').value;
+
+        // Check if qualifiers requirement is met
+        var qualifiersOk = skipChecked || qualifiersText.length > 0;
+
+        // Check if input is provided based on mode
+        var inputOk = false;
+        if (inputMode === 'audio') {
+            var audioInput = document.getElementById('audio-input');
+            inputOk = audioInput && audioInput.files && audioInput.files.length > 0;
+        } else {
+            var transcriptInput = document.getElementById('transcript-input');
+            inputOk = transcriptInput && transcriptInput.value.trim().length > 0;
+        }
+
+        analyzeBtn.disabled = !(qualifiersOk && inputOk);
+    }
+
+    function handleSkipChange() {
+        var skipChecked = document.getElementById('skip-qual').checked;
+        var qualInput = document.getElementById('qualifiers-input');
+        qualInput.disabled = skipChecked;
+        qualInput.style.opacity = skipChecked ? '0.5' : '1';
+        validateForm();
+    }
+
+    function switchInputMode(mode) {
+        var audioSection = document.getElementById('audio-section');
+        var transcriptSection = document.getElementById('transcript-section');
+
+        if (mode === 'audio') {
+            audioSection.style.display = 'block';
+            transcriptSection.style.display = 'none';
+        } else {
+            audioSection.style.display = 'none';
+            transcriptSection.style.display = 'block';
+        }
+        validateForm();
+    }
+
+    // Run validation on page load
+    document.addEventListener('DOMContentLoaded', validateForm);
+    """
+
     return Div(
+        Script(validation_js),
         Div(cls="card")(
             Div(cls="card-header")(
-                H3("Upload QA Call Recording")
+                H3("Analyze QA Call")
             ),
             Div(cls="card-body")(
                 Form(
-                    hx_post="/process_audio",
+                    hx_post="/process_call",
                     hx_target="#tab-content",
                     hx_swap="innerHTML",
                     hx_indicator="#loading-spinner",
                     enctype="multipart/form-data"
                 )(
-                    # Audio upload
-                    Label("Audio File", style="font-weight: 500; display: block; margin-bottom: 4px;"),
-                    Input(type="file", name="audio", accept="audio/*", required=True),
+                    # Input mode selector
+                    Div(style="margin-bottom: 16px;")(
+                        Label("Input Type", style="font-weight: 500; display: block; margin-bottom: 8px;"),
+                        Div(style="display: flex; gap: 24px;")(
+                            Label(style="display: flex; align-items: center; cursor: pointer;")(
+                                Input(type="radio", name="input_mode", value="audio", checked=True,
+                                      style="margin-right: 8px;",
+                                      onchange="switchInputMode('audio')"),
+                                "Upload Audio"
+                            ),
+                            Label(style="display: flex; align-items: center; cursor: pointer;")(
+                                Input(type="radio", name="input_mode", value="transcript",
+                                      style="margin-right: 8px;",
+                                      onchange="switchInputMode('transcript')"),
+                                "Paste Transcript"
+                            )
+                        )
+                    ),
+
+                    # Audio upload section
+                    Div(id="audio-section")(
+                        Label("Audio File", style="font-weight: 500; display: block; margin-bottom: 4px;"),
+                        Input(type="file", name="audio", id="audio-input", accept="audio/*",
+                              onchange="validateForm()")
+                    ),
+
+                    # Transcript paste section (hidden by default)
+                    Div(id="transcript-section", style="display: none;")(
+                        Label("Call Transcript", style="font-weight: 500; display: block; margin-bottom: 4px;"),
+                        Textarea(name="transcript", id="transcript-input",
+                                 placeholder="Paste the full call transcript here...",
+                                 style="min-height: 200px;",
+                                 oninput="validateForm()")
+                    ),
 
                     # Qualifiers section
                     Div(style="margin-top: 16px;")(
@@ -392,20 +576,21 @@ def render_process_tab():
                             Label(style="font-size: 13px; color: var(--text-muted); cursor: pointer;")(
                                 Input(type="checkbox", name="skip_qualifiers", id="skip-qual",
                                       style="margin-right: 6px;",
-                                      onchange="document.getElementById('qualifiers-input').disabled = this.checked; document.getElementById('qualifiers-input').style.opacity = this.checked ? '0.5' : '1';"),
+                                      onchange="handleSkipChange()"),
                                 "Skip qualifiers"
                             )
                         ),
                         Textarea(name="qualifiers", id="qualifiers-input",
                                  placeholder="Paste qualifiers here:\n• KDMs (Key Decision Makers)\n• Timeline expectations\n• Disqualifiers\n• Company-specific criteria",
-                                 style="min-height: 120px;")
+                                 style="min-height: 120px;",
+                                 oninput="validateForm()")
                     ),
 
-                    Button("Analyze Call", type="submit", style="margin-top: 12px;")
+                    Button("Analyze Call", type="submit", id="analyze-btn", disabled=True, style="margin-top: 12px;")
                 )
             ),
             Div(cls="card-footer")(
-                P("Supported formats: MP3, WAV, OGG, M4A", cls="info-text")
+                P("Audio formats: MP3, WAV, OGG, M4A  •  Or paste an existing transcript", cls="info-text")
             )
         )
     )
@@ -501,16 +686,19 @@ def login(req, sess, password: str = None):
 
     return (
         Title("QA Tool - Login"),
-        Div(cls="container", style="max-width: 400px; margin-top: 80px;")(
-            Div(cls="card")(
+        Div(cls="login-container")(
+            Div(cls="card login-card")(
                 Div(cls="card-header")(
-                    H3("QA Call Analyzer")
+                    Div(
+                        H3("QA Call Analyzer"),
+                        P("Sign in to continue", cls="login-subtitle")
+                    )
                 ),
                 Div(cls="card-body")(
-                    P(error_msg, cls="error-text", style="margin-bottom: 12px;") if error_msg else None,
+                    P(error_msg, cls="error-text", style="margin-bottom: 12px; text-align: center;") if error_msg else None,
                     Form(method="post", action="/login")(
-                        Input(name="password", type="password", placeholder="Enter password", required=True),
-                        Button("Login", style="width: 100%;")
+                        Input(name="password", type="password", placeholder="Enter password", required=True, style="margin-bottom: 16px;"),
+                        Button("Sign In", style="width: 100%;")
                     )
                 )
             )
@@ -546,7 +734,8 @@ def home(auth):
                        hx_get="/tab/history",
                        hx_target="#tab-content",
                        hx_swap="innerHTML",
-                       onclick="document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));this.classList.add('active')")
+                       hx_indicator="#history-loading",
+                       onclick="document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));this.classList.add('active');document.getElementById('tab-content').innerHTML='<div class=\"history-loading\"><div class=\"spinner\"></div><p>Loading history...</p></div>'")
             ),
             # Tab content container
             Div(id="tab-content")(
@@ -657,16 +846,12 @@ def view_result(timestamp: str):
             )
         )
 
-@rt("/process_audio", methods=["POST"])
-async def process_audio(audio: UploadFile, sess, qualifiers: str = "", skip_qualifiers: str = None):
+@rt("/process_call", methods=["POST"])
+async def process_call(sess, input_mode: str = "audio", audio: UploadFile = None, transcript: str = "", qualifiers: str = "", skip_qualifiers: str = None):
     try:
-        # Read audio bytes
-        audio_bytes = await audio.read()
-
-        # Determine MIME type
-        ext = audio.filename.lower().split('.')[-1]
-        mime_map = {'mp3': 'audio/mp3', 'wav': 'audio/wav', 'ogg': 'audio/ogg', 'm4a': 'audio/mp4'}
-        mime_type = mime_map.get(ext, 'audio/mpeg')
+        # Determine input source
+        is_transcript_mode = input_mode == "transcript"
+        source_name = "Transcript" if is_transcript_mode else (audio.filename if audio else "Unknown")
 
         # Build qualifiers context for Gemini
         qualifiers_context = ""
@@ -682,7 +867,7 @@ IMPORTANT: Use these qualifiers to verify appointment qualification in Section 7
         # Call Gemini with QA prompt or use mock data
         if gemini_client is None:
             # Mock mode - return sample QA analysis
-            result_text = f"""MOCK ANALYSIS FOR: {audio.filename}
+            result_text = f"""MOCK ANALYSIS FOR: {source_name}
 
 ## 1. INTRODUCTION
 ### A. NON-FOLLOW UP CALL
@@ -736,15 +921,37 @@ IMPORTANT: Use these qualifiers to verify appointment qualification in Section 7
         else:
             # Combine QA prompt with qualifiers context
             full_prompt = QA_PROMPT + qualifiers_context
-            response = gemini_client.models.generate_content(
-                model='gemini-2.0-flash',
-                contents=[
-                    full_prompt,
-                    types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
-                ]
-            )
+
+            if is_transcript_mode:
+                # Process transcript text
+                response = gemini_client.models.generate_content(
+                    model='gemini-2.0-flash',
+                    contents=[
+                        full_prompt + "\n\n## CALL TRANSCRIPT:\n" + transcript
+                    ]
+                )
+            else:
+                # Process audio file
+                audio_bytes = await audio.read()
+                ext = audio.filename.lower().split('.')[-1]
+                mime_map = {'mp3': 'audio/mp3', 'wav': 'audio/wav', 'ogg': 'audio/ogg', 'm4a': 'audio/mp4'}
+                mime_type = mime_map.get(ext, 'audio/mpeg')
+
+                response = gemini_client.models.generate_content(
+                    model='gemini-2.0-flash',
+                    contents=[
+                        full_prompt,
+                        types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
+                    ]
+                )
             result_text = response.text
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # Use US Eastern timezone for consistent timestamps
+        eastern = pytz.timezone('US/Eastern')
+        timestamp = datetime.now(eastern).strftime("%Y-%m-%d %I:%M:%S %p ET")
+
+        # Extract DARTS score for the grade column
+        darts_score = extract_darts_score(result_text)
 
         # Save to Google Sheets or mock storage
         try:
@@ -752,16 +959,18 @@ IMPORTANT: Use these qualifiers to verify appointment qualification in Section 7
             if sheet is not None:
                 sheet.append_row([
                     timestamp,
-                    audio.filename,
-                    result_text[:500],  # Summary (first 500 chars)
-                    result_text         # Full response
+                    source_name,
+                    f"{darts_score}/11",  # Grade/Category column
+                    result_text[:500],    # Summary (first 500 chars)
+                    result_text           # Full response
                 ])
             else:
                 # Mock mode - store in memory
                 global mock_sheet_data
                 mock_sheet_data.append({
                     'Timestamp': timestamp,
-                    'Filename': audio.filename,
+                    'Filename': source_name,
+                    'Grade': f"{darts_score}/11",
                     'Summary': result_text[:500],
                     'Full Result': result_text
                 })
@@ -770,11 +979,10 @@ IMPORTANT: Use these qualifiers to verify appointment qualification in Section 7
 
         # Store result in session for edit/reanalyze
         sess['last_result'] = result_text
-        sess['last_filename'] = audio.filename
+        sess['last_filename'] = source_name
 
-        # Extract DARTS score and return results card with toast
-        darts_score = extract_darts_score(result_text)
-        return render_results_card(result_text, audio.filename, timestamp, darts_score, show_saved_toast=True)
+        # Return results card with toast (darts_score already extracted above)
+        return render_results_card(result_text, source_name, timestamp, darts_score, show_saved_toast=True)
 
     except Exception as e:
         return Div(cls="card")(
@@ -850,8 +1058,13 @@ async def reanalyze(edited_text: str, sess):
             )
             result_text = response.text
 
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Use US Eastern timezone for consistent timestamps
+        eastern = pytz.timezone('US/Eastern')
+        timestamp = datetime.now(eastern).strftime("%Y-%m-%d %I:%M:%S %p ET")
         filename = "Re-analyzed"
+
+        # Extract DARTS score for the grade column
+        darts_score = extract_darts_score(result_text)
 
         # Save to Google Sheets or mock storage
         try:
@@ -860,6 +1073,7 @@ async def reanalyze(edited_text: str, sess):
                 sheet.append_row([
                     timestamp,
                     filename,
+                    f"{darts_score}/11",  # Grade/Category column
                     result_text[:500],
                     result_text
                 ])
@@ -869,6 +1083,7 @@ async def reanalyze(edited_text: str, sess):
                 mock_sheet_data.append({
                     'Timestamp': timestamp,
                     'Filename': filename,
+                    'Grade': f"{darts_score}/11",
                     'Summary': result_text[:500],
                     'Full Result': result_text
                 })
@@ -879,7 +1094,6 @@ async def reanalyze(edited_text: str, sess):
         sess['last_result'] = result_text
         sess['last_filename'] = filename
 
-        darts_score = extract_darts_score(result_text)
         return render_results_card(result_text, filename, timestamp, darts_score, show_saved_toast=True)
 
     except Exception as e:
