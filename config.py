@@ -204,38 +204,38 @@ button:disabled {
 
 /* Result text - rendered markdown */
 .result-text {
-    font-size: 14px;
+    font-size: 0.8rem;
     line-height: 1.6;
     background: var(--card-bg-alt);
-    padding: 20px;
+    padding: 16px;
     border-radius: var(--radius);
     border: 1px solid var(--border);
     color: var(--text);
 }
 .result-text h2 {
-    font-size: 16px;
+    font-size: 0.9rem;
     font-weight: 600;
     color: var(--primary);
-    margin: 24px 0 12px 0;
-    padding-bottom: 8px;
+    margin: 20px 0 10px 0;
+    padding-bottom: 6px;
     border-bottom: 1px solid var(--border);
 }
 .result-text h2:first-child { margin-top: 0; }
 .result-text h3 {
-    font-size: 14px;
+    font-size: 0.85rem;
     font-weight: 600;
     color: var(--text);
-    margin: 16px 0 8px 0;
+    margin: 12px 0 6px 0;
 }
 .result-text ul {
-    margin: 8px 0;
-    padding-left: 20px;
+    margin: 6px 0;
+    padding-left: 18px;
 }
 .result-text li {
-    margin: 4px 0;
+    margin: 3px 0;
 }
 .result-text p {
-    margin: 8px 0;
+    margin: 6px 0;
 }
 .result-text strong {
     color: var(--text);
