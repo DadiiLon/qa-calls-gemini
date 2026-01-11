@@ -167,7 +167,7 @@ def render_results_card(result_text: str, filename: str, timestamp: str, darts_s
                     P(Strong("File: "), filename),
                     P(Strong("Analyzed: "), timestamp)
                 ),
-                Div(NotStr(markdown.markdown(result_text)), cls="result-text", id="result-text-content")
+                Div(NotStr(markdown.markdown(result_text.replace('\\"', '"'))), cls="result-text", id="result-text-content")
             ),
             Div(cls="card-footer")(
                 Button("Upload Another Call",
@@ -256,7 +256,7 @@ def render_result_detail(record: dict, timestamp_clean: str):
                     P(Strong("File: "), filename),
                     P(Strong("Analyzed: "), timestamp_clean)
                 ),
-                Div(NotStr(markdown.markdown(result_text)), cls="result-text")
+                Div(NotStr(markdown.markdown(result_text.replace('\\"', '"'))), cls="result-text")
             ),
             Div(cls="card-footer")(
                 Button("Back to History",
