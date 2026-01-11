@@ -5,3 +5,4 @@ uvicorn
 gspread
 google-auth
 pytz
+markdown

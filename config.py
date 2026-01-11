@@ -202,17 +202,48 @@ button:disabled {
 .metadata p { margin: 4px 0; color: var(--text-muted); }
 .metadata strong { color: var(--text); }
 
-/* Result text */
+/* Result text - rendered markdown */
 .result-text {
-    white-space: pre-wrap;
-    font-family: monospace;
-    font-size: 13px;
-    line-height: 1.5;
+    font-size: 14px;
+    line-height: 1.6;
     background: var(--card-bg-alt);
-    padding: 16px;
+    padding: 20px;
     border-radius: var(--radius);
     border: 1px solid var(--border);
     color: var(--text);
+}
+.result-text h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--primary);
+    margin: 24px 0 12px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+}
+.result-text h2:first-child { margin-top: 0; }
+.result-text h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin: 16px 0 8px 0;
+}
+.result-text ul {
+    margin: 8px 0;
+    padding-left: 20px;
+}
+.result-text li {
+    margin: 4px 0;
+}
+.result-text p {
+    margin: 8px 0;
+}
+.result-text strong {
+    color: var(--text);
+}
+.result-text hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 20px 0;
 }
 
 /* History grid */
