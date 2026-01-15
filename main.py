@@ -262,7 +262,12 @@ IMPORTANT: Use these qualifiers to verify appointment qualification in Section 7
         sess['last_result'] = result_text
         sess['last_filename'] = source_name
 
-        return render_results_card(result_text, source_name, timestamp, darts_score, show_saved_toast=True)
+        # Get signed URL for audio playback
+        audio_signed_url = get_audio_url(audio_blob_name) if audio_blob_name else ""
+
+        return render_results_card(result_text, source_name, timestamp, darts_score,
+                                   transcript=transcript_text, audio_url=audio_signed_url,
+                                   show_saved_toast=True)
 
     except Exception as e:
         return Div(cls="card")(

@@ -142,8 +142,9 @@ def render_process_tab():
     )
 
 
-def render_results_card(result_text: str, filename: str, timestamp: str, darts_score: str, show_saved_toast: bool = False):
-    """Render the results card after analysis"""
+def render_results_card(result_text: str, filename: str, timestamp: str, darts_score: str,
+                        transcript: str = "", audio_url: str = "", show_saved_toast: bool = False):
+    """Render the results card after analysis with sub-tabs for Analysis and Transcript"""
     copy_js = """
     var text = document.getElementById('result-text-content').innerText;
     navigator.clipboard.writeText(text).then(function() {
@@ -157,19 +158,65 @@ def render_results_card(result_text: str, filename: str, timestamp: str, darts_s
     });
     """
 
+    # Check if transcript is available
+    has_transcript = bool(transcript and transcript.strip())
+
+    # Sub-tab switching JavaScript
+    subtab_js = """
+    function switchResultTab(tab) {
+        document.querySelectorAll('.sub-tab').forEach(function(t) {
+            t.classList.remove('active');
+        });
+        event.target.classList.add('active');
+    }
+    """
+
+    # Parse and prepare transcript content
+    transcript_elements = []
+    if has_transcript:
+        merged_lines = parse_transcript_lines(transcript)
+        transcript_elements = [render_transcript_line_simple(entry) for entry in merged_lines]
+
     return Div(
+        Script(subtab_js),
         Div(cls="card")(
             Div(cls="card-header")(
                 H3("Analysis Complete"),
                 Button("Copy", id="copy-btn", cls="btn-copy", onclick=copy_js)
             ),
-            Div(cls="card-body scrollable")(
+            # Sub-tabs (only show if transcript available)
+            Div(cls="sub-tabs")(
+                Button("Analysis", cls="sub-tab active", id="result-tab-analysis",
+                       onclick="switchResultTab('analysis'); document.getElementById('result-analysis-content').style.display='block'; document.getElementById('result-transcript-content').style.display='none';"),
+                Button("Transcript", cls="sub-tab" + (" disabled" if not has_transcript else ""), id="result-tab-transcript",
+                       onclick="switchResultTab('transcript'); document.getElementById('result-analysis-content').style.display='none'; document.getElementById('result-transcript-content').style.display='block';",
+                       disabled=not has_transcript,
+                       title="" if has_transcript else "No transcript available")
+            ) if has_transcript else None,
+            # Analysis content (default visible)
+            Div(cls="card-body scrollable", id="result-analysis-content")(
                 Div(cls="metadata")(
                     P(Strong("File: "), filename),
                     P(Strong("Analyzed: "), timestamp)
                 ),
                 Div(NotStr(markdown.markdown(result_text.replace('\\"', '"'))), cls="result-text", id="result-text-content")
             ),
+            # Transcript content (hidden by default)
+            Div(cls="card-body scrollable", id="result-transcript-content", style="display: none;")(
+                Div(cls="metadata")(
+                    P(Strong("File: "), filename),
+                    P(Strong("Analyzed: "), timestamp)
+                ),
+                # Audio player
+                Div(cls="audio-player-container")(
+                    Audio(id="audio-player", controls=True, cls="audio-player", src=audio_url) if audio_url else None,
+                    P("Audio not available", cls="info-text") if not audio_url else None
+                ) if audio_url else None,
+                # Transcript
+                Div(cls="transcript-container")(
+                    *transcript_elements if transcript_elements else [P("Transcript is empty", cls="info-text")]
+                )
+            ) if has_transcript else None,
             Div(cls="card-footer")(
                 Button("Upload Another Call",
                        hx_get="/tab/process",
