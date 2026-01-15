@@ -1,6 +1,7 @@
 python-fasthtml
 python-dotenv
 google-genai
+google-cloud-storage
 uvicorn
 pytz
 markdown
