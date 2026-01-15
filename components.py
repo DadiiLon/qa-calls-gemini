@@ -4,64 +4,6 @@ import re
 from handlers import extract_darts_score
 
 
-def extract_darts_breakdown(result_text: str) -> dict:
-    """Extract individual DARTS scores from result text"""
-    breakdown = {
-        'D': {'score': '-', 'label': 'Desire to Meet'},
-        'A': {'score': '-', 'label': 'Authority'},
-        'R': {'score': '-', 'label': 'Revenue Opportunity'},
-        'T': {'score': '-', 'label': 'Timeliness'},
-        'S': {'score': '-', 'label': 'Size'}
-    }
-
-    # Pattern to match each DARTS component
-    patterns = {
-        'D': r'\*?\*?D\s*[=:]\s*Desire[^:]*:\*?\*?\s*(\d)',
-        'A': r'\*?\*?A\s*[=:]\s*Authority[^:]*:\*?\*?\s*(\d)',
-        'R': r'\*?\*?R\s*[=:]\s*Revenue[^:]*:\*?\*?\s*(\d)',
-        'T': r'\*?\*?T\s*[=:]\s*Timeliness[^:]*:\*?\*?\s*(\d)',
-        'S': r'\*?\*?S\s*[=:]\s*Size[^:]*:\*?\*?\s*(\d)'
-    }
-
-    for key, pattern in patterns.items():
-        match = re.search(pattern, result_text, re.IGNORECASE)
-        if match:
-            breakdown[key]['score'] = match.group(1)
-
-    return breakdown
-
-
-def render_score_card(darts_score: str, breakdown: dict):
-    """Render the DARTS score card"""
-    # Calculate total from breakdown if available
-    total = 0
-    for key in breakdown:
-        try:
-            total += int(breakdown[key]['score'])
-        except (ValueError, TypeError):
-            pass
-
-    return Div(cls="score-card")(
-        Div(cls="score-card-header")(
-            H3("DARTS Score"),
-            Div(cls="score-total")(
-                Span(darts_score if darts_score != "N/A" else str(total), cls="score-number"),
-                Span("/11", cls="score-max")
-            )
-        ),
-        Div(cls="score-breakdown")(
-            *[Div(cls="score-item")(
-                Div(cls="score-letter")(key),
-                Div(cls="score-details")(
-                    Span(breakdown[key]['label'], cls="score-label"),
-                    Span(f"{breakdown[key]['score']}/2" if key != 'D' else f"{breakdown[key]['score']}/3",
-                         cls="score-value")
-                )
-            ) for key in ['D', 'A', 'R', 'T', 'S']]
-        )
-    )
-
-
 def render_process_tab():
     """Render the upload card for the Process tab"""
     validation_js = """
@@ -202,7 +144,7 @@ def render_process_tab():
 
 def render_results_card(result_text: str, filename: str, timestamp: str, darts_score: str,
                         transcript: str = "", audio_url: str = "", show_saved_toast: bool = False):
-    """Render the results card after analysis with side-by-side layout"""
+    """Render the results card with side-by-side analysis and transcript"""
     copy_js = """
     var text = document.getElementById('result-text-content').innerText;
     navigator.clipboard.writeText(text).then(function() {
@@ -219,67 +161,27 @@ def render_results_card(result_text: str, filename: str, timestamp: str, darts_s
     # Check if transcript is available
     has_transcript = bool(transcript and transcript.strip())
 
-    # Sub-tab switching JavaScript
-    subtab_js = """
-    function switchResultTab(tab) {
-        document.querySelectorAll('.sub-tab').forEach(function(t) {
-            t.classList.remove('active');
-        });
-        event.target.classList.add('active');
-    }
-    """
-
     # Parse and prepare transcript content
     transcript_elements = []
     if has_transcript:
         merged_lines = parse_transcript_lines(transcript)
         transcript_elements = [render_transcript_line_simple(entry) for entry in merged_lines]
 
-    # Extract DARTS breakdown
-    breakdown = extract_darts_breakdown(result_text)
-
-    return Div(cls="results-wrapper")(
-        Script(subtab_js),
-        # Left side: Analysis/Transcript card
+    return Div(cls="results-wrapper" + (" has-transcript" if has_transcript else ""))(
+        # Left side: Analysis card
         Div(cls="results-main")(
             Div(cls="card")(
                 Div(cls="card-header")(
-                    H3("Analysis Complete"),
+                    H3("Analysis"),
                     Button("Copy", id="copy-btn", cls="btn-copy", onclick=copy_js)
                 ),
-                # Sub-tabs (only show if transcript available)
-                Div(cls="sub-tabs")(
-                    Button("Analysis", cls="sub-tab active", id="result-tab-analysis",
-                           onclick="switchResultTab('analysis'); document.getElementById('result-analysis-content').style.display='block'; document.getElementById('result-transcript-content').style.display='none';"),
-                    Button("Transcript", cls="sub-tab" + (" disabled" if not has_transcript else ""), id="result-tab-transcript",
-                           onclick="switchResultTab('transcript'); document.getElementById('result-analysis-content').style.display='none'; document.getElementById('result-transcript-content').style.display='block';",
-                           disabled=not has_transcript,
-                           title="" if has_transcript else "No transcript available")
-                ) if has_transcript else None,
-                # Analysis content (default visible)
-                Div(cls="card-body scrollable", id="result-analysis-content")(
+                Div(cls="card-body scrollable")(
                     Div(cls="metadata")(
                         P(Strong("File: "), filename),
                         P(Strong("Analyzed: "), timestamp)
                     ),
                     Div(NotStr(markdown.markdown(result_text.replace('\\"', '"'))), cls="result-text", id="result-text-content")
                 ),
-                # Transcript content (hidden by default)
-                Div(cls="card-body scrollable", id="result-transcript-content", style="display: none;")(
-                    Div(cls="metadata")(
-                        P(Strong("File: "), filename),
-                        P(Strong("Analyzed: "), timestamp)
-                    ),
-                    # Audio player
-                    Div(cls="audio-player-container")(
-                        Audio(id="audio-player", controls=True, cls="audio-player", src=audio_url) if audio_url else None,
-                        P("Audio not available", cls="info-text") if not audio_url else None
-                    ) if audio_url else None,
-                    # Transcript
-                    Div(cls="transcript-container")(
-                        *transcript_elements if transcript_elements else [P("Transcript is empty", cls="info-text")]
-                    )
-                ) if has_transcript else None,
                 Div(cls="card-footer")(
                     Button("Upload Another Call",
                            hx_get="/tab/process",
@@ -294,10 +196,25 @@ def render_results_card(result_text: str, filename: str, timestamp: str, darts_s
                 )
             )
         ),
-        # Right side: Score card
+        # Right side: Transcript card (only if transcript available)
         Div(cls="results-sidebar")(
-            render_score_card(darts_score, breakdown)
-        ),
+            Div(cls="card")(
+                Div(cls="card-header")(
+                    H3("Transcript")
+                ),
+                Div(cls="card-body scrollable")(
+                    # Audio player
+                    Div(cls="audio-player-container")(
+                        Audio(id="audio-player", controls=True, cls="audio-player", src=audio_url) if audio_url else None,
+                        P("Audio not available", cls="info-text") if not audio_url else None
+                    ) if audio_url else None,
+                    # Transcript
+                    Div(cls="transcript-container")(
+                        *transcript_elements if transcript_elements else [P("Transcript is empty", cls="info-text")]
+                    )
+                )
+            )
+        ) if has_transcript else None,
         Div("✓ Saved to history", id="save-toast", cls="toast show" if show_saved_toast else "toast"),
         Script("setTimeout(function(){ var t = document.getElementById('save-toast'); if(t) t.classList.remove('show'); }, 3000);") if show_saved_toast else None
     )
