@@ -274,58 +274,79 @@ def render_edit_form(result_text: str, filename: str):
 
 
 def render_result_detail(record: dict, timestamp_clean: str, timestamp_encoded: str):
-    """Render full result detail view from history with sub-tabs"""
+    """Render full result detail view from history with side-by-side layout"""
     filename = record.get('Filename', 'Unknown')
     result_text = record.get('Full Result', '')
     transcript = record.get('Transcript', '')
     audio_url = record.get('Audio_URL', '')
-    darts_score = extract_darts_score(result_text)
 
     # Check if transcript is available
     has_transcript = bool(transcript and transcript.strip())
 
-    # Sub-tab switching JavaScript
-    subtab_js = """
-    function switchDetailTab(tab) {
-        document.querySelectorAll('.sub-tab').forEach(function(t) {
-            t.classList.remove('active');
-        });
-        event.target.classList.add('active');
-    }
+    # Parse and prepare transcript content
+    transcript_elements = []
+    if has_transcript:
+        merged_lines = parse_transcript_lines(transcript)
+        transcript_elements = [render_transcript_line_simple(entry) for entry in merged_lines]
+
+    # Copy button JavaScript
+    copy_js = """
+    var text = document.getElementById('result-text-content').innerText;
+    navigator.clipboard.writeText(text).then(function() {
+        var btn = document.getElementById('copy-btn');
+        btn.innerText = '✓ Copied';
+        btn.classList.add('copied');
+        setTimeout(function() {
+            btn.innerText = 'Copy';
+            btn.classList.remove('copied');
+        }, 2000);
+    });
     """
 
     return Div(
-        Script(subtab_js),
-        Div(cls="card")(
-            Div(cls="card-header")(
-                H3("Analysis Details")
+        Div(cls="results-wrapper" + (" has-transcript" if has_transcript else ""))(
+            # Left side: Analysis card
+            Div(cls="results-main")(
+                Div(cls="card")(
+                    Div(cls="card-header")(
+                        H3("Analysis"),
+                        Button("Copy", id="copy-btn", cls="btn-copy", onclick=copy_js)
+                    ),
+                    Div(cls="card-body scrollable")(
+                        Div(cls="metadata")(
+                            P(Strong("File: "), filename),
+                            P(Strong("Analyzed: "), timestamp_clean)
+                        ),
+                        Div(NotStr(markdown.markdown(result_text.replace('\\\"', '"'))), cls="result-text", id="result-text-content")
+                    ),
+                    Div(cls="card-footer")(
+                        Button("Back to History",
+                               hx_get="/tab/history",
+                               hx_target="#tab-content",
+                               hx_swap="innerHTML",
+                               onclick="document.getElementById('tab-history').classList.add('active');document.getElementById('tab-process').classList.remove('active')")
+                    )
+                )
             ),
-            # Sub-tabs
-            Div(cls="sub-tabs")(
-                Button("Analysis", cls="sub-tab active",
-                       hx_get=f"/result/{timestamp_encoded}/analysis",
-                       hx_target="#detail-content",
-                       hx_swap="innerHTML",
-                       onclick="switchDetailTab('analysis')"),
-                Button("Transcript", cls="sub-tab" + (" disabled" if not has_transcript else ""),
-                       hx_get=f"/result/{timestamp_encoded}/transcript",
-                       hx_target="#detail-content",
-                       hx_swap="innerHTML",
-                       onclick="switchDetailTab('transcript')",
-                       disabled=not has_transcript,
-                       title="" if has_transcript else "No transcript available for this record")
-            ),
-            # Content area (default to analysis view)
-            Div(id="detail-content")(
-                render_analysis_content(result_text, filename, timestamp_clean)
-            ),
-            Div(cls="card-footer")(
-                Button("Back to History",
-                       hx_get="/tab/history",
-                       hx_target="#tab-content",
-                       hx_swap="innerHTML",
-                       onclick="document.getElementById('tab-history').classList.add('active');document.getElementById('tab-process').classList.remove('active')")
-            )
+            # Right side: Transcript card (only if transcript available)
+            Div(cls="results-sidebar")(
+                Div(cls="card")(
+                    Div(cls="card-header")(
+                        H3("Transcript")
+                    ),
+                    Div(cls="card-body scrollable")(
+                        # Audio player
+                        Div(cls="audio-player-container")(
+                            Audio(id="audio-player", controls=True, cls="audio-player", src=audio_url) if audio_url else None,
+                            P("Audio not available", cls="info-text") if not audio_url else None
+                        ) if audio_url else None,
+                        # Transcript
+                        Div(cls="transcript-container")(
+                            *transcript_elements if transcript_elements else [P("Transcript is empty", cls="info-text")]
+                        )
+                    )
+                )
+            ) if has_transcript else None
         )
     )
 

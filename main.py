@@ -114,6 +114,11 @@ def view_result(timestamp: str):
                 )
             )
 
+        # Get signed URL for audio if available
+        audio_blob = record.get('Audio_URL', '')
+        if audio_blob:
+            record['Audio_URL'] = get_audio_url(audio_blob) or ''
+
         return render_result_detail(record, timestamp_clean, timestamp)
 
     except Exception as e:

@@ -545,19 +545,41 @@ label {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 20px;
-    align-items: start;
+    align-items: stretch;
 }
 
 .results-main {
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.results-main .card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.results-main .card-body.scrollable {
+    flex: 1;
+    max-height: 500px;
 }
 
 .results-sidebar {
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.results-sidebar .card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
 }
 
 .results-sidebar .card-body.scrollable {
-    max-height: 600px;
+    flex: 1;
+    max-height: 500px;
 }
 
 .results-sidebar .transcript-container {
