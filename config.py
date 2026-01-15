@@ -490,8 +490,9 @@ label {
     position: sticky;
     top: 0;
     background: var(--card-bg);
-    padding: 16px 0;
-    margin-bottom: 16px;
+    padding: 12px 0;
+    margin: -20px -20px 12px -20px;
+    padding: 12px 20px;
     border-bottom: 1px solid var(--border);
     z-index: 10;
 }
