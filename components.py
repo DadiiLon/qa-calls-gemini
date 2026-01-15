@@ -1,5 +1,6 @@
 from fasthtml.common import *
 import markdown
+import re
 from handlers import extract_darts_score
 
 
@@ -240,23 +241,51 @@ def render_edit_form(result_text: str, filename: str):
     )
 
 
-def render_result_detail(record: dict, timestamp_clean: str):
-    """Render full result detail view from history"""
+def render_result_detail(record: dict, timestamp_clean: str, timestamp_encoded: str):
+    """Render full result detail view from history with sub-tabs"""
     filename = record.get('Filename', 'Unknown')
     result_text = record.get('Full Result', '')
+    transcript = record.get('Transcript', '')
+    audio_url = record.get('Audio_URL', '')
     darts_score = extract_darts_score(result_text)
 
+    # Check if transcript is available
+    has_transcript = bool(transcript and transcript.strip())
+
+    # Sub-tab switching JavaScript
+    subtab_js = """
+    function switchDetailTab(tab) {
+        document.querySelectorAll('.sub-tab').forEach(function(t) {
+            t.classList.remove('active');
+        });
+        event.target.classList.add('active');
+    }
+    """
+
     return Div(
+        Script(subtab_js),
         Div(cls="card")(
             Div(cls="card-header")(
                 H3("Analysis Details")
             ),
-            Div(cls="card-body scrollable")(
-                Div(cls="metadata")(
-                    P(Strong("File: "), filename),
-                    P(Strong("Analyzed: "), timestamp_clean)
-                ),
-                Div(NotStr(markdown.markdown(result_text.replace('\\"', '"'))), cls="result-text")
+            # Sub-tabs
+            Div(cls="sub-tabs")(
+                Button("Analysis", cls="sub-tab active",
+                       hx_get=f"/result/{timestamp_encoded}/analysis",
+                       hx_target="#detail-content",
+                       hx_swap="innerHTML",
+                       onclick="switchDetailTab('analysis')"),
+                Button("Transcript", cls="sub-tab" + (" disabled" if not has_transcript else ""),
+                       hx_get=f"/result/{timestamp_encoded}/transcript",
+                       hx_target="#detail-content",
+                       hx_swap="innerHTML",
+                       onclick="switchDetailTab('transcript')",
+                       disabled=not has_transcript,
+                       title="" if has_transcript else "No transcript available for this record")
+            ),
+            # Content area (default to analysis view)
+            Div(id="detail-content")(
+                render_analysis_content(result_text, filename, timestamp_clean)
             ),
             Div(cls="card-footer")(
                 Button("Back to History",
@@ -264,6 +293,96 @@ def render_result_detail(record: dict, timestamp_clean: str):
                        hx_target="#tab-content",
                        hx_swap="innerHTML",
                        onclick="document.getElementById('tab-history').classList.add('active');document.getElementById('tab-process').classList.remove('active')")
+            )
+        )
+    )
+
+
+def render_analysis_content(result_text: str, filename: str, timestamp_clean: str):
+    """Render the analysis tab content"""
+    return Div(cls="card-body scrollable")(
+        Div(cls="metadata")(
+            P(Strong("File: "), filename),
+            P(Strong("Analyzed: "), timestamp_clean)
+        ),
+        Div(NotStr(markdown.markdown(result_text.replace('\\"', '"'))), cls="result-text")
+    )
+
+
+def parse_timestamp_to_seconds(timestamp_str: str) -> int:
+    """Convert [MM:SS] or [M:SS] to seconds"""
+    match = re.match(r'\[?(\d+):(\d+)\]?', timestamp_str)
+    if match:
+        minutes = int(match.group(1))
+        seconds = int(match.group(2))
+        # Validate reasonable ranges
+        if minutes < 0 or seconds < 0 or seconds >= 60 or minutes > 999:
+            return 0
+        return minutes * 60 + seconds
+    return 0
+
+
+def render_transcript_line(line: str):
+    """Render a single transcript line with clickable timestamp"""
+    # Parse line format: [MM:SS] Speaker: Text
+    match = re.match(r'\[(\d+:\d+)\]\s*(\w+):\s*(.*)', line.strip())
+    if not match:
+        # If line doesn't match format, render as plain text
+        if line.strip():
+            return P(line.strip(), cls="transcript-line-plain")
+        return None
+
+    timestamp = match.group(1)
+    speaker = match.group(2)
+    text = match.group(3)
+    seconds = parse_timestamp_to_seconds(timestamp)
+
+    # Determine speaker class for coloring
+    speaker_class = "speaker-agent" if speaker.lower() == "agent" else "speaker-client"
+
+    return Div(cls="transcript-line")(
+        Span(f"[{timestamp}]", cls="timestamp-badge", onclick=f"seekTo({seconds})"),
+        Span(f" {speaker}: ", cls=f"speaker-label {speaker_class}"),
+        Span(text, cls="transcript-text")
+    )
+
+
+def render_transcript_content(transcript: str, audio_url: str | None, filename: str, timestamp_clean: str):
+    """Render the transcript tab content with audio player"""
+    # Audio seek JavaScript
+    audio_js = """
+    function seekTo(seconds) {
+        var player = document.getElementById('audio-player');
+        if (player) {
+            player.currentTime = seconds;
+            player.play();
+        }
+    }
+    """
+
+    # Parse transcript lines
+    lines = transcript.split('\n')
+    transcript_elements = []
+    for line in lines:
+        element = render_transcript_line(line)
+        if element:
+            transcript_elements.append(element)
+
+    return Div(
+        Script(audio_js),
+        Div(cls="card-body scrollable")(
+            Div(cls="metadata")(
+                P(Strong("File: "), filename),
+                P(Strong("Analyzed: "), timestamp_clean)
+            ),
+            # Audio player (only if audio_url is available)
+            Div(cls="audio-player-container")(
+                Audio(id="audio-player", controls=True, cls="audio-player", src=audio_url) if audio_url else None,
+                P("Audio not available for this recording", cls="info-text") if not audio_url else None
+            ),
+            # Transcript content
+            Div(cls="transcript-container")(
+                *transcript_elements if transcript_elements else [P("Transcript is empty", cls="info-text")]
             )
         )
     )

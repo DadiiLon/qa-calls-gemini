@@ -6,11 +6,13 @@ import os
 from config import SESSION_SECRET, CSS
 from handlers import (
     analyze_audio, analyze_transcript, reanalyze_text, extract_darts_score,
-    save_result, get_history, find_record_by_timestamp
+    save_result, get_history, find_record_by_timestamp,
+    upload_audio, get_audio_url, get_mock_audio
 )
 from components import (
     render_process_tab, render_results_card, render_history_card,
-    render_edit_form, render_result_detail
+    render_edit_form, render_result_detail, render_analysis_content,
+    render_transcript_content
 )
 
 app, rt = fast_app(
@@ -112,7 +114,7 @@ def view_result(timestamp: str):
                 )
             )
 
-        return render_result_detail(record, timestamp_clean)
+        return render_result_detail(record, timestamp_clean, timestamp)
 
     except Exception as e:
         return Div(cls="card")(
@@ -120,6 +122,76 @@ def view_result(timestamp: str):
                 P(f"Error loading result: {str(e)}", cls="error-text")
             )
         )
+
+
+@rt("/result/{timestamp}/analysis")
+def view_result_analysis(timestamp: str):
+    """Return just the analysis content for HTMX swap"""
+    try:
+        timestamp_clean = timestamp.replace('_', ' ').replace('~', ':')
+        record = find_record_by_timestamp(timestamp_clean)
+
+        if not record:
+            return P("Result not found", cls="error-text")
+
+        filename = record.get('Filename', 'Unknown')
+        result_text = record.get('Full Result', '')
+
+        return render_analysis_content(result_text, filename, timestamp_clean)
+
+    except Exception as e:
+        return P(f"Error: {str(e)}", cls="error-text")
+
+
+@rt("/result/{timestamp}/transcript")
+def view_result_transcript(timestamp: str):
+    """Return just the transcript content for HTMX swap"""
+    try:
+        timestamp_clean = timestamp.replace('_', ' ').replace('~', ':')
+        record = find_record_by_timestamp(timestamp_clean)
+
+        if not record:
+            return P("Result not found", cls="error-text")
+
+        filename = record.get('Filename', 'Unknown')
+        transcript = record.get('Transcript', '')
+        audio_blob = record.get('Audio_URL', '')
+
+        # Get signed URL for audio if available
+        audio_url = None
+        if audio_blob:
+            audio_url = get_audio_url(audio_blob)
+
+        if not transcript:
+            return Div(cls="card-body")(
+                P("No transcript available for this record.", cls="info-text"),
+                P("Transcripts are only available for new audio uploads.", cls="info-text")
+            )
+
+        return render_transcript_content(transcript, audio_url, filename, timestamp_clean)
+
+    except Exception as e:
+        return P(f"Error: {str(e)}", cls="error-text")
+
+
+@rt("/audio/{blob_name:path}")
+def serve_audio(blob_name: str):
+    """Serve audio file (for mock mode) or redirect to signed URL"""
+    # Check if this is mock audio
+    mock_bytes = get_mock_audio(blob_name)
+    if mock_bytes:
+        return Response(
+            content=mock_bytes,
+            media_type="audio/mpeg",
+            headers={"Content-Disposition": f"inline; filename={blob_name}"}
+        )
+
+    # For real mode, redirect to signed URL
+    signed_url = get_audio_url(blob_name)
+    if signed_url:
+        return RedirectResponse(url=signed_url)
+
+    return Response(content="Audio not found", status_code=404)
 
 
 # ============ PROCESSING ROUTES ============
@@ -140,23 +212,50 @@ async def process_call(sess, input_mode: str = "audio", audio: UploadFile = None
 IMPORTANT: Use these qualifiers to verify appointment qualification in Section 7. Check if the prospect matches the qualifiers (KDMs, timeline, size thresholds) and note any disqualifiers mentioned.
 """
 
+        # Generate timestamp early (needed for audio upload)
+        manila = pytz.timezone('Asia/Manila')
+        timestamp = datetime.now(manila).strftime("%Y-%m-%d %I:%M:%S %p PHT")
+
+        # Initialize transcript and audio URL
+        transcript_text = ""
+        audio_blob_name = ""
+
         # Analyze with Gemini
         if is_transcript_mode:
             result_text = analyze_transcript(transcript, qualifiers_context)
+            # No transcript extraction for pasted transcripts (already have it)
         else:
+            # Validate audio file
+            if not audio or not audio.filename:
+                raise ValueError("No audio file provided")
+
+            # Check content type from upload
+            content_type = getattr(audio, 'content_type', '') or ''
+            if not content_type.startswith('audio/'):
+                raise ValueError("Only audio files are allowed")
+
             audio_bytes = await audio.read()
+
+            # Validate file size (max 25MB for Gemini)
+            if len(audio_bytes) > 25_000_000:
+                raise ValueError("Audio file too large (max 25MB)")
+
             ext = audio.filename.lower().split('.')[-1]
             mime_map = {'mp3': 'audio/mp3', 'wav': 'audio/wav', 'ogg': 'audio/ogg', 'm4a': 'audio/mp4'}
-            mime_type = mime_map.get(ext, 'audio/mpeg')
-            result_text = analyze_audio(audio_bytes, mime_type, qualifiers_context)
+            mime_type = mime_map.get(ext, content_type or 'audio/mpeg')
 
-        # Generate timestamp
-        manila = pytz.timezone('Asia/Manila')
-        timestamp = datetime.now(manila).strftime("%Y-%m-%d %I:%M:%S %p PHT")
+            # Upload audio to storage first
+            audio_blob_name = upload_audio(audio_bytes, audio.filename, timestamp) or ""
+
+            # Analyze audio (now returns dict with analysis and transcript)
+            result = analyze_audio(audio_bytes, mime_type, qualifiers_context)
+            result_text = result['analysis']
+            transcript_text = result['transcript']
+
         darts_score = extract_darts_score(result_text)
 
-        # Save to storage
-        if not save_result(timestamp, source_name, result_text):
+        # Save to storage with transcript and audio URL
+        if not save_result(timestamp, source_name, result_text, transcript_text, audio_blob_name):
             result_text += "\n\n⚠️ Failed to save to history"
 
         # Store in session for edit/reanalyze

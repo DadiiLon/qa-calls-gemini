@@ -453,6 +453,113 @@ label {
     color: var(--text);
 }
 
+/* Sub-tabs (smaller than main tabs) */
+.sub-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--card-bg-alt);
+}
+
+.sub-tab {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-muted);
+    transition: all 0.15s;
+}
+
+.sub-tab:hover:not(:disabled) { color: var(--text); }
+.sub-tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+.sub-tab:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Audio player */
+.audio-player-container {
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.audio-player {
+    width: 100%;
+    height: 40px;
+    border-radius: var(--radius);
+}
+
+/* Transcript styling */
+.transcript-container {
+    background: var(--card-bg-alt);
+    padding: 16px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.transcript-line {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    line-height: 1.5;
+}
+
+.transcript-line:last-child {
+    border-bottom: none;
+}
+
+.transcript-line-plain {
+    padding: 8px 0;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.timestamp-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--border-light);
+    color: var(--text);
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: monospace;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-right: 4px;
+}
+
+.timestamp-badge:hover {
+    background: var(--primary);
+    color: white;
+}
+
+.speaker-label {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.speaker-agent {
+    color: #3b82f6;
+}
+
+.speaker-client {
+    color: #22c55e;
+}
+
+.transcript-text {
+    color: var(--text);
+    font-size: 14px;
+}
+
 /* Mobile responsive */
 @media (max-width: 640px) {
     .container { padding: 16px 12px; }
@@ -464,5 +571,9 @@ label {
     .card-footer button { width: 100%; }
     .history-grid { grid-template-columns: 1fr; }
     .darts-badge { font-size: 12px; padding: 4px 10px; }
+    .sub-tabs { padding: 0 16px; }
+    .sub-tab { padding: 8px 14px; font-size: 13px; }
+    .transcript-container { padding: 12px; }
+    .transcript-line { padding: 6px 0; }
 }
 """

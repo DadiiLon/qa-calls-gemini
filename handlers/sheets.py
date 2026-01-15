@@ -21,7 +21,8 @@ def get_sheets_client():
         return None
 
 
-def save_result(timestamp: str, filename: str, result_text: str) -> bool:
+def save_result(timestamp: str, filename: str, result_text: str,
+                transcript: str = "", audio_url: str = "") -> bool:
     """Save result to Google Sheets or mock storage. Returns True on success."""
     global mock_sheet_data
 
@@ -31,13 +32,17 @@ def save_result(timestamp: str, filename: str, result_text: str) -> bool:
             sheet.append_row([
                 timestamp,
                 filename,
-                result_text
+                result_text,
+                transcript,
+                audio_url
             ])
         else:
             mock_sheet_data.append({
                 'Timestamp': timestamp,
                 'Filename': filename,
-                'Full Result': result_text
+                'Full Result': result_text,
+                'Transcript': transcript,
+                'Audio_URL': audio_url
             })
         return True
     except Exception:

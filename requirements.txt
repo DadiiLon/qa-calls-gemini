@@ -4,5 +4,6 @@ google-genai
 uvicorn
 gspread
 google-auth
+google-cloud-storage
 pytz
 markdown
