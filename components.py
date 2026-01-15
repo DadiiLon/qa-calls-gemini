@@ -349,12 +349,20 @@ def render_transcript_line(line: str):
 
 def render_transcript_content(transcript: str, audio_url: str | None, filename: str, timestamp_clean: str):
     """Render the transcript tab content with audio player"""
-    # Audio seek JavaScript
+    # Audio seek JavaScript with offset support
     audio_js = """
+    var audioOffset = 0;
+
+    function updateOffset(value) {
+        audioOffset = parseFloat(value);
+        document.getElementById('offset-value').textContent = (audioOffset >= 0 ? '+' : '') + audioOffset.toFixed(1) + 's';
+    }
+
     function seekTo(seconds) {
         var player = document.getElementById('audio-player');
         if (player) {
-            player.currentTime = seconds;
+            var adjustedTime = Math.max(0, seconds + audioOffset);
+            player.currentTime = adjustedTime;
             player.play();
         }
     }
@@ -378,7 +386,13 @@ def render_transcript_content(transcript: str, audio_url: str | None, filename: 
             # Audio player (only if audio_url is available)
             Div(cls="audio-player-container")(
                 Audio(id="audio-player", controls=True, cls="audio-player", src=audio_url) if audio_url else None,
-                P("Audio not available for this recording", cls="info-text") if not audio_url else None
+                P("Audio not available for this recording", cls="info-text") if not audio_url else None,
+                # Offset slider
+                Div(cls="offset-control")(
+                    Label("Sync offset: ", Span("+0.0s", id="offset-value", cls="offset-value")),
+                    Input(type="range", id="offset-slider", min="-20", max="20", step="0.2", value="0",
+                          oninput="updateOffset(this.value)", cls="offset-slider")
+                ) if audio_url else None
             ),
             # Transcript content
             Div(cls="transcript-container")(

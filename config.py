@@ -498,6 +498,52 @@ label {
     border-radius: var(--radius);
 }
 
+/* Offset control */
+.offset-control {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.offset-value {
+    font-family: monospace;
+    color: var(--text);
+    min-width: 50px;
+    display: inline-block;
+}
+
+.offset-slider {
+    flex: 1;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--border);
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.offset-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--primary);
+    cursor: pointer;
+}
+
+.offset-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--primary);
+    cursor: pointer;
+    border: none;
+}
+
 /* Transcript styling */
 .transcript-container {
     background: var(--card-bg-alt);
