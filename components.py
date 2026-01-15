@@ -158,6 +158,41 @@ def render_results_card(result_text: str, filename: str, timestamp: str, darts_s
     });
     """
 
+    # Audio scrubbing JS - play audio while dragging slider
+    audio_scrub_js = """
+    (function() {
+        var audio = document.getElementById('audio-player');
+        if (!audio) return;
+
+        var scrubbing = false;
+        var wasPlaying = false;
+
+        audio.addEventListener('mousedown', function(e) {
+            var rect = audio.getBoundingClientRect();
+            var controlsHeight = 40;
+            if (e.clientY - rect.top < controlsHeight) {
+                scrubbing = true;
+                wasPlaying = !audio.paused;
+            }
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (scrubbing && audio.duration) {
+                audio.play();
+            }
+        });
+
+        document.addEventListener('mouseup', function() {
+            if (scrubbing) {
+                scrubbing = false;
+                if (!wasPlaying) {
+                    audio.pause();
+                }
+            }
+        });
+    })();
+    """
+
     # Check if transcript is available
     has_transcript = bool(transcript and transcript.strip())
 
@@ -216,7 +251,8 @@ def render_results_card(result_text: str, filename: str, timestamp: str, darts_s
             )
         ) if has_transcript else None,
         Div("✓ Saved to history", id="save-toast", cls="toast show" if show_saved_toast else "toast"),
-        Script("setTimeout(function(){ var t = document.getElementById('save-toast'); if(t) t.classList.remove('show'); }, 3000);") if show_saved_toast else None
+        Script("setTimeout(function(){ var t = document.getElementById('save-toast'); if(t) t.classList.remove('show'); }, 3000);") if show_saved_toast else None,
+        Script(audio_scrub_js) if has_transcript and audio_url else None
     )
 
 
@@ -303,6 +339,41 @@ def render_result_detail(record: dict, timestamp_clean: str, timestamp_encoded: 
     });
     """
 
+    # Audio scrubbing JS - play audio while dragging slider
+    audio_scrub_js = """
+    (function() {
+        var audio = document.getElementById('audio-player');
+        if (!audio) return;
+
+        var scrubbing = false;
+        var wasPlaying = false;
+
+        audio.addEventListener('mousedown', function(e) {
+            var rect = audio.getBoundingClientRect();
+            var controlsHeight = 40;
+            if (e.clientY - rect.top < controlsHeight) {
+                scrubbing = true;
+                wasPlaying = !audio.paused;
+            }
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (scrubbing && audio.duration) {
+                audio.play();
+            }
+        });
+
+        document.addEventListener('mouseup', function() {
+            if (scrubbing) {
+                scrubbing = false;
+                if (!wasPlaying) {
+                    audio.pause();
+                }
+            }
+        });
+    })();
+    """
+
     return Div(
         Div(cls="results-wrapper" + (" has-transcript" if has_transcript else ""))(
             # Left side: Analysis card
@@ -347,7 +418,8 @@ def render_result_detail(record: dict, timestamp_clean: str, timestamp_encoded: 
                     )
                 )
             ) if has_transcript else None
-        )
+        ),
+        Script(audio_scrub_js) if has_transcript and audio_url else None
     )
 
 

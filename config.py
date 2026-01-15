@@ -485,11 +485,15 @@ label {
     cursor: not-allowed;
 }
 
-/* Audio player */
+/* Audio player - sticky at top */
 .audio-player-container {
+    position: sticky;
+    top: 0;
+    background: var(--card-bg);
+    padding: 16px 0;
     margin-bottom: 16px;
-    padding-bottom: 16px;
     border-bottom: 1px solid var(--border);
+    z-index: 10;
 }
 
 .audio-player {
@@ -504,8 +508,6 @@ label {
     padding: 16px;
     border-radius: var(--radius);
     border: 1px solid var(--border);
-    max-height: 400px;
-    overflow-y: auto;
 }
 
 .transcript-line {
