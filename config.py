@@ -37,7 +37,7 @@ body {
 }
 
 .container {
-    max-width: 900px;
+    max-width: 1200px;
     margin: 0 auto;
     padding: 24px 16px;
 }
@@ -536,7 +536,133 @@ label {
     font-size: 14px;
 }
 
+/* Side-by-side results layout */
+.results-wrapper {
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    gap: 20px;
+    align-items: start;
+}
+
+.results-main {
+    min-width: 0;
+}
+
+.results-sidebar {
+    position: sticky;
+    top: 20px;
+}
+
+/* Score card */
+.score-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.score-card-header {
+    padding: 20px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    text-align: center;
+}
+
+.score-card-header h3 {
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.score-total {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 2px;
+}
+
+.score-number {
+    font-size: 48px;
+    font-weight: 700;
+    color: white;
+    line-height: 1;
+}
+
+.score-max {
+    font-size: 24px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.score-breakdown {
+    padding: 16px;
+}
+
+.score-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.score-item:last-child {
+    border-bottom: none;
+}
+
+.score-letter {
+    width: 32px;
+    height: 32px;
+    background: var(--card-bg-alt);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--primary);
+}
+
+.score-details {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.score-label {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.score-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+}
+
 /* Mobile responsive */
+@media (max-width: 900px) {
+    .results-wrapper {
+        grid-template-columns: 1fr;
+    }
+    .results-sidebar {
+        position: static;
+        order: -1;
+    }
+    .score-card-header {
+        padding: 16px;
+    }
+    .score-number {
+        font-size: 36px;
+    }
+    .score-max {
+        font-size: 18px;
+    }
+}
+
 @media (max-width: 640px) {
     .container { padding: 16px 12px; }
     h1 { font-size: 20px; }
