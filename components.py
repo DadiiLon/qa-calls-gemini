@@ -237,12 +237,12 @@ def render_results_card(result_text: str, filename: str, timestamp: str, darts_s
                 Div(cls="card-header")(
                     H3("Transcript")
                 ),
+                # Audio player - outside card-body to sit flush with header
+                Div(cls="audio-player-container")(
+                    Audio(id="audio-player", controls=True, cls="audio-player", src=audio_url) if audio_url else None,
+                    P("Audio not available", cls="info-text") if not audio_url else None
+                ) if audio_url else None,
                 Div(cls="card-body scrollable")(
-                    # Audio player
-                    Div(cls="audio-player-container")(
-                        Audio(id="audio-player", controls=True, cls="audio-player", src=audio_url) if audio_url else None,
-                        P("Audio not available", cls="info-text") if not audio_url else None
-                    ) if audio_url else None,
                     # Transcript
                     Div(cls="transcript-container")(
                         *transcript_elements if transcript_elements else [P("Transcript is empty", cls="info-text")]
@@ -405,12 +405,12 @@ def render_result_detail(record: dict, timestamp_clean: str, timestamp_encoded: 
                     Div(cls="card-header")(
                         H3("Transcript")
                     ),
+                    # Audio player - outside card-body to sit flush with header
+                    Div(cls="audio-player-container")(
+                        Audio(id="audio-player", controls=True, cls="audio-player", src=audio_url) if audio_url else None,
+                        P("Audio not available", cls="info-text") if not audio_url else None
+                    ) if audio_url else None,
                     Div(cls="card-body scrollable")(
-                        # Audio player
-                        Div(cls="audio-player-container")(
-                            Audio(id="audio-player", controls=True, cls="audio-player", src=audio_url) if audio_url else None,
-                            P("Audio not available", cls="info-text") if not audio_url else None
-                        ) if audio_url else None,
                         # Transcript
                         Div(cls="transcript-container")(
                             *transcript_elements if transcript_elements else [P("Transcript is empty", cls="info-text")]

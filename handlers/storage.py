@@ -2,15 +2,17 @@ import os
 import re
 import json
 from datetime import timedelta
-
-# In-memory storage for mock mode
-mock_audio_storage = {}
+from pathlib import Path
 
 # Check if we have credentials for real mode
 _has_credentials = "GOOGLE_SERVICE_ACCOUNT_JSON" in os.environ
 
 # GCS bucket name (create this in your GCP console)
 GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME", "qa-calls-audio")
+
+# Mock storage directory (persists across restarts)
+MOCK_AUDIO_DIR = Path(__file__).parent.parent / ".mock_audio"
+MOCK_AUDIO_DIR.mkdir(exist_ok=True)
 
 
 def sanitize_filename(filename: str) -> str:
@@ -66,11 +68,9 @@ def upload_audio(audio_bytes: bytes, filename: str, timestamp: str) -> str | Non
             blob.upload_from_string(audio_bytes, content_type=content_type)
             return blob_name
         else:
-            # Mock mode: store in memory (will be lost on restart)
-            mock_audio_storage[blob_name] = {
-                'bytes': audio_bytes,
-                'filename': filename
-            }
+            # Mock mode: store to disk (persists across restarts)
+            mock_path = MOCK_AUDIO_DIR / blob_name
+            mock_path.write_bytes(audio_bytes)
             return blob_name
     except Exception:
         return None
@@ -98,14 +98,20 @@ def get_audio_url(blob_name: str) -> str | None:
             )
             return url
         else:
-            # Mock mode: return a mock URL
-            if blob_name in mock_audio_storage:
-                return f"/mock-audio/{blob_name}"
+            # Mock mode: check if file exists on disk
+            mock_path = MOCK_AUDIO_DIR / blob_name
+            if mock_path.exists():
+                from urllib.parse import quote
+                return f"/api/audio?file={quote(blob_name)}"
             return None
-    except Exception:
+    except Exception as e:
+        print(f"[DEBUG] get_audio_url exception: {e}")
         return None
 
 
 def get_mock_audio(blob_name: str) -> bytes | None:
     """Get audio bytes from mock storage (for local testing)"""
-    return mock_audio_storage.get(blob_name, {}).get('bytes')
+    mock_path = MOCK_AUDIO_DIR / blob_name
+    if mock_path.exists():
+        return mock_path.read_bytes()
+    return None

@@ -485,16 +485,11 @@ label {
     cursor: not-allowed;
 }
 
-/* Audio player - sticky at top */
+/* Audio player - flush with header */
 .audio-player-container {
-    position: sticky;
-    top: 0;
     background: var(--card-bg);
-    padding: 12px 0;
-    margin: -20px -20px 12px -20px;
     padding: 12px 20px;
     border-bottom: 1px solid var(--border);
-    z-index: 10;
 }
 
 .audio-player {

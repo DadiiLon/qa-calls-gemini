@@ -29,7 +29,6 @@ app, rt = fast_app(
 def health():
     return {"status": "ok", "timestamp": datetime.now().isoformat()}
 
-
 # ============ MAIN ROUTES ============
 @rt("/")
 def home():
@@ -179,16 +178,61 @@ def view_result_transcript(timestamp: str):
         return P(f"Error: {str(e)}", cls="error-text")
 
 
-@rt("/audio/{blob_name:path}")
-def serve_audio(blob_name: str):
-    """Serve audio file (for mock mode) or redirect to signed URL"""
+@rt("/api/audio")
+def serve_audio(request, file: str = ""):
+    """Serve audio file (for mock mode) or redirect to signed URL with range request support"""
+    blob_name = file
+    if not blob_name:
+        return Response(content="No file specified", status_code=400)
+
     # Check if this is mock audio
     mock_bytes = get_mock_audio(blob_name)
     if mock_bytes:
+        # Determine content type
+        content_type = "audio/mpeg"
+        if blob_name.lower().endswith(".wav"):
+            content_type = "audio/wav"
+        elif blob_name.lower().endswith(".m4a"):
+            content_type = "audio/mp4"
+        elif blob_name.lower().endswith(".ogg"):
+            content_type = "audio/ogg"
+
+        file_size = len(mock_bytes)
+        range_header = request.headers.get("range")
+
+        if range_header:
+            # Parse range header (e.g., "bytes=0-1000")
+            try:
+                range_spec = range_header.replace("bytes=", "")
+                start_str, end_str = range_spec.split("-")
+                start = int(start_str) if start_str else 0
+                end = int(end_str) if end_str else file_size - 1
+                end = min(end, file_size - 1)
+
+                content_length = end - start + 1
+                return Response(
+                    content=mock_bytes[start:end + 1],
+                    status_code=206,
+                    media_type=content_type,
+                    headers={
+                        "Content-Range": f"bytes {start}-{end}/{file_size}",
+                        "Accept-Ranges": "bytes",
+                        "Content-Length": str(content_length),
+                        "Content-Disposition": f"inline; filename={blob_name}"
+                    }
+                )
+            except (ValueError, IndexError):
+                pass  # Fall through to return full file
+
+        # No range request - return full file
         return Response(
             content=mock_bytes,
-            media_type="audio/mpeg",
-            headers={"Content-Disposition": f"inline; filename={blob_name}"}
+            media_type=content_type,
+            headers={
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(file_size),
+                "Content-Disposition": f"inline; filename={blob_name}"
+            }
         )
 
     # For real mode, redirect to signed URL
