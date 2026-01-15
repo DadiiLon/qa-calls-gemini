@@ -12,19 +12,24 @@ except ValueError:
 # Prompt for transcript extraction with timestamps and speaker labels
 TRANSCRIPT_PROMPT = """Transcribe this audio with timestamps and speaker labels.
 
+CRITICAL: Timestamps must reflect the ACTUAL AUDIO FILE TIME, not when speech begins.
+If the audio starts with silence, ringing, or hold music before speech begins, the first speech timestamp should reflect that delay (e.g., if 15 seconds of ringing before "Hello", use [0:15] not [0:00]).
+
 Format each line exactly as:
 [MM:SS] Speaker: Text
 
 Rules:
+- Timestamps = actual position in the audio file (0:00 = start of audio file)
 - Use [MM:SS] format for timestamps (e.g., [0:15], [1:30], [10:45])
 - Identify speakers as "Agent" (the sales representative) and "Client" (the prospect/customer)
 - Include a new timestamp every 10-15 seconds or when the speaker changes
 - Capture the full conversation verbatim
+- Be precise with timestamps - if you're unsure, estimate conservatively
 
-Example output:
-[0:00] Agent: Hello, thank you for calling ABC Company. My name is John.
-[0:05] Client: Hi John, I'm calling about your services.
-[0:12] Agent: I'd be happy to help you with that. Can you tell me more about what you're looking for?
+Example (audio with 10 seconds of ringing before speech):
+[0:10] Agent: Hello, thank you for calling ABC Company. My name is John.
+[0:16] Client: Hi John, I'm calling about your services.
+[0:23] Agent: I'd be happy to help you with that.
 """
 
 
