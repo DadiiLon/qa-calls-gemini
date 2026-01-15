@@ -349,13 +349,19 @@ def render_transcript_line(line: str):
 
 def render_transcript_content(transcript: str, audio_url: str | None, filename: str, timestamp_clean: str):
     """Render the transcript tab content with audio player"""
-    # Audio seek JavaScript with offset support
+    # Audio seek JavaScript with offset support and karaoke-style highlighting
     audio_js = """
     var audioOffset = 0;
+    var transcriptTimestamps = [];
 
     function updateOffset(value) {
         audioOffset = parseFloat(value);
         document.getElementById('offset-value').textContent = (audioOffset >= 0 ? '+' : '') + audioOffset.toFixed(1) + 's';
+        // Re-highlight based on new offset
+        var player = document.getElementById('audio-player');
+        if (player) {
+            highlightCurrentLine(player.currentTime);
+        }
     }
 
     function seekTo(seconds) {
@@ -366,6 +372,84 @@ def render_transcript_content(transcript: str, audio_url: str | None, filename: 
             player.play();
         }
     }
+
+    function initTranscriptTimestamps() {
+        transcriptTimestamps = [];
+        var lines = document.querySelectorAll('.transcript-line');
+        lines.forEach(function(line, index) {
+            var badge = line.querySelector('.timestamp-badge');
+            if (badge) {
+                var timeText = badge.textContent.replace('[', '').replace(']', '');
+                var parts = timeText.split(':');
+                var seconds = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+                transcriptTimestamps.push({ element: line, time: seconds, index: index });
+            }
+        });
+    }
+
+    function highlightCurrentLine(currentTime) {
+        // Adjust for offset (subtract offset to map audio time to transcript time)
+        var transcriptTime = currentTime - audioOffset;
+
+        // Find the current line based on transcript time
+        var currentIndex = -1;
+        for (var i = transcriptTimestamps.length - 1; i >= 0; i--) {
+            if (transcriptTime >= transcriptTimestamps[i].time) {
+                currentIndex = i;
+                break;
+            }
+        }
+
+        // Remove highlight from all lines
+        transcriptTimestamps.forEach(function(item) {
+            item.element.classList.remove('transcript-active');
+        });
+
+        // Add highlight to current line
+        if (currentIndex >= 0 && currentIndex < transcriptTimestamps.length) {
+            transcriptTimestamps[currentIndex].element.classList.add('transcript-active');
+
+            // Auto-scroll to keep active line visible
+            var container = document.querySelector('.transcript-container');
+            var activeLine = transcriptTimestamps[currentIndex].element;
+            if (container && activeLine) {
+                var containerRect = container.getBoundingClientRect();
+                var lineRect = activeLine.getBoundingClientRect();
+
+                // Check if line is outside visible area
+                if (lineRect.top < containerRect.top || lineRect.bottom > containerRect.bottom) {
+                    activeLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        }
+    }
+
+    // Initialize when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        initTranscriptTimestamps();
+
+        var player = document.getElementById('audio-player');
+        if (player) {
+            player.addEventListener('timeupdate', function() {
+                highlightCurrentLine(player.currentTime);
+            });
+        }
+    });
+
+    // Also initialize immediately in case DOM is already loaded (HTMX swap)
+    setTimeout(function() {
+        initTranscriptTimestamps();
+
+        var player = document.getElementById('audio-player');
+        if (player) {
+            // Remove any existing listener to avoid duplicates
+            player.removeEventListener('timeupdate', player._highlightHandler);
+            player._highlightHandler = function() {
+                highlightCurrentLine(player.currentTime);
+            };
+            player.addEventListener('timeupdate', player._highlightHandler);
+        }
+    }, 100);
     """
 
     # Parse transcript lines

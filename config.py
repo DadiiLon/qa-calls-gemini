@@ -555,13 +555,22 @@ label {
 }
 
 .transcript-line {
-    padding: 8px 0;
+    padding: 8px 12px;
     border-bottom: 1px solid var(--border);
     line-height: 1.5;
+    border-radius: 4px;
+    margin: 2px 0;
+    transition: all 0.2s ease;
 }
 
 .transcript-line:last-child {
     border-bottom: none;
+}
+
+.transcript-line.transcript-active {
+    background: rgba(59, 130, 246, 0.15);
+    border-left: 3px solid var(--primary);
+    padding-left: 9px;
 }
 
 .transcript-line-plain {
