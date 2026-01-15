@@ -309,159 +309,76 @@ def render_analysis_content(result_text: str, filename: str, timestamp_clean: st
     )
 
 
-def parse_timestamp_to_seconds(timestamp_str: str) -> int:
-    """Convert [MM:SS] or [M:SS] to seconds"""
-    match = re.match(r'\[?(\d+):(\d+)\]?', timestamp_str)
-    if match:
-        minutes = int(match.group(1))
-        seconds = int(match.group(2))
-        # Validate reasonable ranges
-        if minutes < 0 or seconds < 0 or seconds >= 60 or minutes > 999:
-            return 0
-        return minutes * 60 + seconds
-    return 0
+def parse_transcript_lines(transcript: str) -> list:
+    """Parse transcript and merge consecutive same-speaker lines"""
+    lines = transcript.split('\n')
+    merged = []
+    current_speaker = None
+    current_texts = []
+
+    for line in lines:
+        # Parse line format: [MM:SS] Speaker: Text
+        match = re.match(r'\[(\d+:\d+)\]\s*(\w+):\s*(.*)', line.strip())
+        if not match:
+            continue
+
+        speaker = match.group(2)
+        text = match.group(3).strip()
+
+        if not text:
+            continue
+
+        # Normalize speaker name
+        speaker_lower = speaker.lower()
+        if speaker_lower == current_speaker:
+            # Same speaker, append text
+            current_texts.append(text)
+        else:
+            # Different speaker, save previous and start new
+            if current_speaker and current_texts:
+                merged.append({
+                    'speaker': current_speaker,
+                    'text': ' '.join(current_texts)
+                })
+            current_speaker = speaker_lower
+            current_texts = [text]
+
+    # Don't forget the last speaker
+    if current_speaker and current_texts:
+        merged.append({
+            'speaker': current_speaker,
+            'text': ' '.join(current_texts)
+        })
+
+    return merged
 
 
-def render_transcript_line(line: str):
-    """Render a single transcript line with clickable timestamp"""
-    # Parse line format: [MM:SS] Speaker: Text
-    match = re.match(r'\[(\d+:\d+)\]\s*(\w+):\s*(.*)', line.strip())
-    if not match:
-        # If line doesn't match format, render as plain text
-        if line.strip():
-            return P(line.strip(), cls="transcript-line-plain")
-        return None
+def render_transcript_line_simple(entry: dict):
+    """Render a merged transcript line without timestamps"""
+    speaker = entry['speaker']
+    text = entry['text']
 
-    timestamp = match.group(1)
-    speaker = match.group(2)
-    text = match.group(3)
-    seconds = parse_timestamp_to_seconds(timestamp)
-
-    # Determine speaker class for coloring
-    speaker_class = "speaker-agent" if speaker.lower() == "agent" else "speaker-client"
+    # Determine speaker class and display name
+    if speaker == "agent":
+        speaker_class = "speaker-agent"
+        display_name = "Agent"
+    else:
+        speaker_class = "speaker-client"
+        display_name = "Client"
 
     return Div(cls="transcript-line")(
-        Span(f"[{timestamp}]", cls="timestamp-badge", onclick=f"seekTo({seconds})"),
-        Span(f" {speaker}: ", cls=f"speaker-label {speaker_class}"),
+        Span(f"{display_name}: ", cls=f"speaker-label {speaker_class}"),
         Span(text, cls="transcript-text")
     )
 
 
 def render_transcript_content(transcript: str, audio_url: str | None, filename: str, timestamp_clean: str):
-    """Render the transcript tab content with audio player"""
-    # Audio seek JavaScript with offset support and karaoke-style highlighting
-    audio_js = """
-    var audioOffset = 0;
-    var transcriptTimestamps = [];
-
-    function updateOffset(value) {
-        audioOffset = parseFloat(value);
-        document.getElementById('offset-value').textContent = (audioOffset >= 0 ? '+' : '') + audioOffset.toFixed(1) + 's';
-        // Re-highlight based on new offset
-        var player = document.getElementById('audio-player');
-        if (player) {
-            highlightCurrentLine(player.currentTime);
-        }
-    }
-
-    function seekTo(seconds) {
-        var player = document.getElementById('audio-player');
-        if (player) {
-            var adjustedTime = Math.max(0, seconds + audioOffset);
-            player.currentTime = adjustedTime;
-            player.play();
-        }
-    }
-
-    function initTranscriptTimestamps() {
-        transcriptTimestamps = [];
-        var lines = document.querySelectorAll('.transcript-line');
-        lines.forEach(function(line, index) {
-            var badge = line.querySelector('.timestamp-badge');
-            if (badge) {
-                var timeText = badge.textContent.replace('[', '').replace(']', '');
-                var parts = timeText.split(':');
-                var seconds = parseInt(parts[0]) * 60 + parseInt(parts[1]);
-                transcriptTimestamps.push({ element: line, time: seconds, index: index });
-            }
-        });
-    }
-
-    function highlightCurrentLine(currentTime) {
-        // Adjust for offset (subtract offset to map audio time to transcript time)
-        var transcriptTime = currentTime - audioOffset;
-
-        // Find the current line based on transcript time
-        var currentIndex = -1;
-        for (var i = transcriptTimestamps.length - 1; i >= 0; i--) {
-            if (transcriptTime >= transcriptTimestamps[i].time) {
-                currentIndex = i;
-                break;
-            }
-        }
-
-        // Remove highlight from all lines
-        transcriptTimestamps.forEach(function(item) {
-            item.element.classList.remove('transcript-active');
-        });
-
-        // Add highlight to current line
-        if (currentIndex >= 0 && currentIndex < transcriptTimestamps.length) {
-            transcriptTimestamps[currentIndex].element.classList.add('transcript-active');
-
-            // Auto-scroll to keep active line visible
-            var container = document.querySelector('.transcript-container');
-            var activeLine = transcriptTimestamps[currentIndex].element;
-            if (container && activeLine) {
-                var containerRect = container.getBoundingClientRect();
-                var lineRect = activeLine.getBoundingClientRect();
-
-                // Check if line is outside visible area
-                if (lineRect.top < containerRect.top || lineRect.bottom > containerRect.bottom) {
-                    activeLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }
-        }
-    }
-
-    // Initialize when DOM is ready
-    document.addEventListener('DOMContentLoaded', function() {
-        initTranscriptTimestamps();
-
-        var player = document.getElementById('audio-player');
-        if (player) {
-            player.addEventListener('timeupdate', function() {
-                highlightCurrentLine(player.currentTime);
-            });
-        }
-    });
-
-    // Also initialize immediately in case DOM is already loaded (HTMX swap)
-    setTimeout(function() {
-        initTranscriptTimestamps();
-
-        var player = document.getElementById('audio-player');
-        if (player) {
-            // Remove any existing listener to avoid duplicates
-            player.removeEventListener('timeupdate', player._highlightHandler);
-            player._highlightHandler = function() {
-                highlightCurrentLine(player.currentTime);
-            };
-            player.addEventListener('timeupdate', player._highlightHandler);
-        }
-    }, 100);
-    """
-
-    # Parse transcript lines
-    lines = transcript.split('\n')
-    transcript_elements = []
-    for line in lines:
-        element = render_transcript_line(line)
-        if element:
-            transcript_elements.append(element)
+    """Render the transcript tab content with audio player (no timestamp sync)"""
+    # Parse and merge consecutive same-speaker lines
+    merged_lines = parse_transcript_lines(transcript)
+    transcript_elements = [render_transcript_line_simple(entry) for entry in merged_lines]
 
     return Div(
-        Script(audio_js),
         Div(cls="card-body scrollable")(
             Div(cls="metadata")(
                 P(Strong("File: "), filename),
@@ -470,14 +387,8 @@ def render_transcript_content(transcript: str, audio_url: str | None, filename: 
             # Audio player (only if audio_url is available)
             Div(cls="audio-player-container")(
                 Audio(id="audio-player", controls=True, cls="audio-player", src=audio_url) if audio_url else None,
-                P("Audio not available for this recording", cls="info-text") if not audio_url else None,
-                # Offset slider
-                Div(cls="offset-control")(
-                    Label("Sync offset: ", Span("+0.0s", id="offset-value", cls="offset-value")),
-                    Input(type="range", id="offset-slider", min="-20", max="20", step="0.2", value="0",
-                          oninput="updateOffset(this.value)", cls="offset-slider")
-                ) if audio_url else None
-            ),
+                P("Audio not available for this recording", cls="info-text") if not audio_url else None
+            ) if audio_url else None,
             # Transcript content
             Div(cls="transcript-container")(
                 *transcript_elements if transcript_elements else [P("Transcript is empty", cls="info-text")]
