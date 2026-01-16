@@ -8,10 +8,13 @@ Automated QA analysis tool for sales call recordings. Upload audio or paste tran
 - **Transcript Paste** - Analyze text transcripts directly
 - **Qualifiers Input** - Add KDMs, timeline, disqualifiers for context
 - **Structured Analysis** - Introduction, Relevant Topics, Close, Objection Handling, Opportunity, Documentation
-- **History** - View past 50 analyses with full results
+- **History** - View past 100 analyses (newest first) with full results
+- **Audio Playback** - Listen to recordings directly from history
+- **Multi-word Search** - Search and highlight multiple keywords with different colors
 - **Edit & Re-analyze** - Modify results and reprocess with Gemini
 - **Copy to Clipboard** - One-click copy of analysis results
-- **Google Sheets Storage** - All results saved automatically
+- **Turso Database** - Fast SQLite edge database for instant history loading
+- **Google Cloud Storage** - Audio files stored persistently (optional)
 
 ## Tech Stack
 
@@ -19,7 +22,8 @@ Automated QA analysis tool for sales call recordings. Upload audio or paste tran
 |------|--------------|
 | <a href="https://fastht.ml" target="_blank">FastHTML</a> | Python web framework - lets you build websites using only Python (no JavaScript needed) |
 | Gemini 2.0 Flash | Google's AI model that listens to audio and analyzes it |
-| Google Sheets | Free database - stores all your analysis results in a spreadsheet |
+| <a href="https://turso.tech" target="_blank">Turso</a> | SQLite edge database - fast, serverless database for storing analysis results |
+| Google Cloud Storage | Stores audio files for playback in history (optional) |
 | <a href="https://render.com" target="_blank">Render</a> | Free website hosting - puts your app on the internet |
 
 ---
@@ -147,8 +151,11 @@ Environment variables are secret settings your app needs to run. On Render, you 
 |----------|----------|------------|
 | `SESSION_SECRET` | Yes | A random string that keeps user sessions secure. Generate one with the command below. |
 | `GOOGLE_API_KEY` | Yes | Your Gemini AI key (lets you use Google's AI) |
-| `GOOGLE_SERVICE_ACCOUNT_JSON` | Yes | Credentials for Google Sheets (lets your app save data) |
+| `TURSO_DATABASE_URL` | Yes | Your Turso database URL (e.g., `libsql://your-db.turso.io`) |
+| `TURSO_AUTH_TOKEN` | Yes | Your Turso authentication token |
 | `QA_PROMPT` | Yes | The instructions telling Gemini how to analyze calls |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | No | Credentials for Google Cloud Storage (for audio playback in history) |
+| `GCS_BUCKET_NAME` | No | Your GCS bucket name (default: `qa-calls-audio`) |
 | `PORT` | No | Which port to run on (default: 5001) |
 
 ### Generate a Session Secret
@@ -162,7 +169,7 @@ Copy the output (a long random string) and use it as your `SESSION_SECRET`.
 
 ---
 
-## Setup: API Keys & Google Sheets
+## Setup: API Keys & Database
 
 ### Step 1: Get Gemini API Key
 
@@ -173,38 +180,58 @@ This key lets your app use Google's AI to analyze calls.
 3. Click **Create API Key**
 4. Copy the key - this is your `GOOGLE_API_KEY`
 
-### Step 2: Set Up Google Sheets (for saving results)
+### Step 2: Set Up Turso Database
 
-Your analysis results get saved to a Google Sheet. To do this, you need a "service account" - think of it as a robot Google account that your app uses.
+Turso is a fast, serverless SQLite database that stores your analysis results.
+
+1. Install the Turso CLI:
+   ```bash
+   curl -sSfL https://get.tur.so/install.sh | bash
+   ```
+
+2. Sign up and login:
+   ```bash
+   turso auth login
+   ```
+
+3. Create a database:
+   ```bash
+   turso db create qa-calls
+   ```
+
+4. Get your database URL:
+   ```bash
+   turso db show qa-calls --url
+   ```
+   Copy this - it's your `TURSO_DATABASE_URL`
+
+5. Create an auth token:
+   ```bash
+   turso db tokens create qa-calls
+   ```
+   Copy this - it's your `TURSO_AUTH_TOKEN`
+
+### Step 3: Set Up Google Cloud Storage (Optional - for audio playback)
+
+If you want to replay audio recordings from history, set up GCS:
 
 1. Go to <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a>
 2. Create a new project (or select existing)
-3. In the search bar, search for **Google Sheets API** and enable it
-4. Go to **APIs & Services > Credentials** (left sidebar)
-5. Click **Create Credentials > Service Account**
-6. Name it something like `qa-sheets-writer`
-7. Click **Done**
-8. Click on the service account email you just created
+3. Search for **Cloud Storage** and click **Create Bucket**
+4. Name it (e.g., `qa-calls-audio`) and create it
+5. Go to **APIs & Services > Credentials**
+6. Click **Create Credentials > Service Account**
+7. Name it something like `qa-audio-storage`
+8. Click **Done**, then click on the service account
 9. Go to **Keys** tab > **Add Key** > **Create new key** > **JSON**
-10. A file downloads - this is your credentials
+10. Download the JSON file
 
-Open the downloaded JSON file. Copy the entire contents (it's one big blob of text) and paste it as your `GOOGLE_SERVICE_ACCOUNT_JSON`. Keep it as one line.
+Copy the entire JSON contents as your `GOOGLE_SERVICE_ACCOUNT_JSON`.
 
-### Step 3: Create Your Google Sheet
-
-1. Go to <a href="https://sheets.google.com" target="_blank">Google Sheets</a>
-2. Create a new blank spreadsheet
-3. Name it exactly: `QA Results`
-4. In the first row, add these headers:
-   - A1: `Timestamp`
-   - B1: `Filename`
-   - C1: `Full Result`
-5. Click **Share** (top right)
-6. Paste the service account email (find it in your JSON file under `client_email` - looks like `something@something.iam.gserviceaccount.com`)
-7. Give it **Editor** access
-8. Click **Send**
-
-Now your app can save results to this spreadsheet!
+Then give the service account access to your bucket:
+1. Go to your bucket in Cloud Storage
+2. Click **Permissions** > **Grant Access**
+3. Add the service account email with **Storage Object Admin** role
 
 ---
 
@@ -216,7 +243,8 @@ Now your app can save results to this spreadsheet!
 ├── components.py     # UI building blocks - buttons, cards, forms
 ├── handlers/
 │   ├── gemini.py     # Talks to Gemini AI
-│   └── sheets.py     # Talks to Google Sheets
+│   ├── database.py   # Talks to Turso database
+│   └── storage.py    # Handles audio file storage (GCS)
 ├── requirements.txt  # List of Python packages needed
 └── .env              # Your secret keys (not uploaded to GitHub)
 ```
