@@ -78,10 +78,8 @@ def tab_history():
                 P("Upload a call recording to get started!")
             )
 
-        # Reverse to show newest first, limit to 50
-        records_copy = list(records)
-        records_copy.reverse()
-        records_copy = records_copy[:50]
+        # Limit to 50 (already sorted newest first from DB)
+        records_copy = list(records)[:50]
 
         return Div(cls="history-grid")(
             *[render_history_card(record, idx) for idx, record in enumerate(records_copy)]

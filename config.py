@@ -39,7 +39,7 @@ body {
 .container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 24px 16px;
+    padding: 24px 16px 0 16px;
 }
 
 h1 {
@@ -81,7 +81,9 @@ h1 {
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    margin-bottom: 20px;
+    margin-bottom: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .card-header {
@@ -99,8 +101,8 @@ h1 {
     color: var(--text);
 }
 
-.card-body { padding: 20px; }
-.card-body.scrollable {
+.card-body {
+    padding: 20px;
     max-height: 500px;
     overflow-y: auto;
 }
@@ -201,6 +203,58 @@ button:disabled {
 }
 .metadata p { margin: 4px 0; color: var(--text-muted); }
 .metadata strong { color: var(--text); }
+
+/* Search box container - fixed above scrollable content */
+.search-box-container {
+    background: var(--card-bg);
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+}
+.search-box-container input {
+    margin-bottom: 0;
+    padding-right: 36px;
+}
+.search-clear {
+    position: absolute;
+    right: 28px;
+    top: 22px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 18px;
+    padding: 4px 8px;
+    cursor: pointer;
+    line-height: 1;
+}
+.search-clear:hover {
+    color: var(--text);
+    background: none;
+}
+
+/* Highlight */
+mark {
+    background: #f59e0b;
+    color: #000;
+    padding: 1px 3px;
+    border-radius: 3px;
+}
+
+/* Search chips */
+.search-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+.search-chip {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #000;
+}
 
 /* Result text - rendered markdown */
 .result-text {
@@ -548,36 +602,10 @@ label {
 
 .results-main {
     min-width: 0;
-    display: flex;
-    flex-direction: column;
-}
-
-.results-main .card {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-}
-
-.results-main .card-body.scrollable {
-    flex: 1;
-    max-height: 500px;
 }
 
 .results-sidebar {
     min-width: 0;
-    display: flex;
-    flex-direction: column;
-}
-
-.results-sidebar .card {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-}
-
-.results-sidebar .card-body.scrollable {
-    flex: 1;
-    max-height: 500px;
 }
 
 .results-sidebar .transcript-container {

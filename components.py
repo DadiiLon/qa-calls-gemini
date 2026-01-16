@@ -193,6 +193,87 @@ def render_results_card(result_text: str, filename: str, timestamp: str, darts_s
     })();
     """
 
+    # Search/highlight JavaScript with random colors per word
+    search_highlight_js = """
+    (function() {
+        var searchInput = document.getElementById('search-input');
+        var clearBtn = document.getElementById('search-clear');
+        var chipsContainer = document.getElementById('search-chips');
+        var originalAnalysis = document.getElementById('result-text-content').innerHTML;
+        var originalTranscript = document.getElementById('transcript-container') ?
+            document.getElementById('transcript-container').innerHTML : '';
+
+        var colors = [
+            '#f59e0b', '#3b82f6', '#22c55e', '#ef4444', '#8b5cf6',
+            '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16'
+        ];
+
+        function escapeRegex(str) {
+            return str.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
+        }
+
+        function highlightText(text, keywords) {
+            if (!keywords.length) return text;
+            keywords.forEach(function(kw, i) {
+                var color = colors[i % colors.length];
+                var regex = new RegExp('(' + escapeRegex(kw) + ')', 'gi');
+                text = text.replace(regex, '<mark style=\"background:' + color + '\">$1</mark>');
+            });
+            return text;
+        }
+
+        function renderChips(keywords) {
+            chipsContainer.innerHTML = '';
+            keywords.forEach(function(kw, i) {
+                var color = colors[i % colors.length];
+                var chip = document.createElement('span');
+                chip.className = 'search-chip';
+                chip.style.background = color;
+                chip.textContent = kw;
+                chipsContainer.appendChild(chip);
+            });
+        }
+
+        function doSearch() {
+            var query = searchInput.value.trim();
+            var keywords = query.split(/[,\\s]+/).filter(function(k) { return k.length > 0; });
+
+            // Show/hide clear button
+            clearBtn.style.display = query ? 'block' : 'none';
+
+            // Render colored chips
+            renderChips(keywords);
+
+            // Highlight analysis
+            var analysisEl = document.getElementById('result-text-content');
+            if (keywords.length > 0) {
+                analysisEl.innerHTML = highlightText(originalAnalysis, keywords);
+            } else {
+                analysisEl.innerHTML = originalAnalysis;
+            }
+
+            // Highlight transcript
+            var transcriptEl = document.getElementById('transcript-container');
+            if (transcriptEl) {
+                if (keywords.length > 0) {
+                    transcriptEl.innerHTML = highlightText(originalTranscript, keywords);
+                } else {
+                    transcriptEl.innerHTML = originalTranscript;
+                }
+            }
+        }
+
+        function clearSearch() {
+            searchInput.value = '';
+            doSearch();
+            searchInput.focus();
+        }
+
+        searchInput.addEventListener('input', doSearch);
+        clearBtn.addEventListener('click', clearSearch);
+    })();
+    """
+
     # Check if transcript is available
     has_transcript = bool(transcript and transcript.strip())
 
@@ -210,11 +291,12 @@ def render_results_card(result_text: str, filename: str, timestamp: str, darts_s
                     H3("Analysis"),
                     Button("Copy", id="copy-btn", cls="btn-copy", onclick=copy_js)
                 ),
+                Div(cls="search-box-container")(
+                    Input(type="text", id="search-input", placeholder="Search words (comma separated)...", autocomplete="off"),
+                    Button("×", id="search-clear", cls="search-clear", type="button", style="display:none;"),
+                    Div(id="search-chips", cls="search-chips")
+                ),
                 Div(cls="card-body scrollable")(
-                    Div(cls="metadata")(
-                        P(Strong("File: "), filename),
-                        P(Strong("Analyzed: "), timestamp)
-                    ),
                     Div(NotStr(markdown.markdown(result_text.replace('\\"', '"'))), cls="result-text", id="result-text-content")
                 ),
                 Div(cls="card-footer")(
@@ -244,7 +326,7 @@ def render_results_card(result_text: str, filename: str, timestamp: str, darts_s
                 ) if audio_url else None,
                 Div(cls="card-body scrollable")(
                     # Transcript
-                    Div(cls="transcript-container")(
+                    Div(cls="transcript-container", id="transcript-container")(
                         *transcript_elements if transcript_elements else [P("Transcript is empty", cls="info-text")]
                     )
                 )
@@ -252,7 +334,8 @@ def render_results_card(result_text: str, filename: str, timestamp: str, darts_s
         ) if has_transcript else None,
         Div("✓ Saved to history", id="save-toast", cls="toast show" if show_saved_toast else "toast"),
         Script("setTimeout(function(){ var t = document.getElementById('save-toast'); if(t) t.classList.remove('show'); }, 3000);") if show_saved_toast else None,
-        Script(audio_scrub_js) if has_transcript and audio_url else None
+        Script(audio_scrub_js) if has_transcript and audio_url else None,
+        Script(search_highlight_js)
     )
 
 
@@ -374,6 +457,87 @@ def render_result_detail(record: dict, timestamp_clean: str, timestamp_encoded: 
     })();
     """
 
+    # Search/highlight JavaScript with random colors per word
+    search_highlight_js = """
+    (function() {
+        var searchInput = document.getElementById('search-input');
+        var clearBtn = document.getElementById('search-clear');
+        var chipsContainer = document.getElementById('search-chips');
+        var originalAnalysis = document.getElementById('result-text-content').innerHTML;
+        var originalTranscript = document.getElementById('transcript-container') ?
+            document.getElementById('transcript-container').innerHTML : '';
+
+        var colors = [
+            '#f59e0b', '#3b82f6', '#22c55e', '#ef4444', '#8b5cf6',
+            '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16'
+        ];
+
+        function escapeRegex(str) {
+            return str.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
+        }
+
+        function highlightText(text, keywords) {
+            if (!keywords.length) return text;
+            keywords.forEach(function(kw, i) {
+                var color = colors[i % colors.length];
+                var regex = new RegExp('(' + escapeRegex(kw) + ')', 'gi');
+                text = text.replace(regex, '<mark style=\"background:' + color + '\">$1</mark>');
+            });
+            return text;
+        }
+
+        function renderChips(keywords) {
+            chipsContainer.innerHTML = '';
+            keywords.forEach(function(kw, i) {
+                var color = colors[i % colors.length];
+                var chip = document.createElement('span');
+                chip.className = 'search-chip';
+                chip.style.background = color;
+                chip.textContent = kw;
+                chipsContainer.appendChild(chip);
+            });
+        }
+
+        function doSearch() {
+            var query = searchInput.value.trim();
+            var keywords = query.split(/[,\\s]+/).filter(function(k) { return k.length > 0; });
+
+            // Show/hide clear button
+            clearBtn.style.display = query ? 'block' : 'none';
+
+            // Render colored chips
+            renderChips(keywords);
+
+            // Highlight analysis
+            var analysisEl = document.getElementById('result-text-content');
+            if (keywords.length > 0) {
+                analysisEl.innerHTML = highlightText(originalAnalysis, keywords);
+            } else {
+                analysisEl.innerHTML = originalAnalysis;
+            }
+
+            // Highlight transcript
+            var transcriptEl = document.getElementById('transcript-container');
+            if (transcriptEl) {
+                if (keywords.length > 0) {
+                    transcriptEl.innerHTML = highlightText(originalTranscript, keywords);
+                } else {
+                    transcriptEl.innerHTML = originalTranscript;
+                }
+            }
+        }
+
+        function clearSearch() {
+            searchInput.value = '';
+            doSearch();
+            searchInput.focus();
+        }
+
+        searchInput.addEventListener('input', doSearch);
+        clearBtn.addEventListener('click', clearSearch);
+    })();
+    """
+
     return Div(
         Div(cls="results-wrapper" + (" has-transcript" if has_transcript else ""))(
             # Left side: Analysis card
@@ -383,19 +547,13 @@ def render_result_detail(record: dict, timestamp_clean: str, timestamp_encoded: 
                         H3("Analysis"),
                         Button("Copy", id="copy-btn", cls="btn-copy", onclick=copy_js)
                     ),
-                    Div(cls="card-body scrollable")(
-                        Div(cls="metadata")(
-                            P(Strong("File: "), filename),
-                            P(Strong("Analyzed: "), timestamp_clean)
-                        ),
-                        Div(NotStr(markdown.markdown(result_text.replace('\\\"', '"'))), cls="result-text", id="result-text-content")
+                    Div(cls="search-box-container")(
+                        Input(type="text", id="search-input", placeholder="Search words (comma separated)...", autocomplete="off"),
+                        Button("×", id="search-clear", cls="search-clear", type="button", style="display:none;"),
+                        Div(id="search-chips", cls="search-chips")
                     ),
-                    Div(cls="card-footer")(
-                        Button("Back to History",
-                               hx_get="/tab/history",
-                               hx_target="#tab-content",
-                               hx_swap="innerHTML",
-                               onclick="document.getElementById('tab-history').classList.add('active');document.getElementById('tab-process').classList.remove('active')")
+                    Div(cls="card-body scrollable")(
+                        Div(NotStr(markdown.markdown(result_text.replace('\\\"', '"'))), cls="result-text", id="result-text-content")
                     )
                 )
             ),
@@ -412,14 +570,15 @@ def render_result_detail(record: dict, timestamp_clean: str, timestamp_encoded: 
                     ) if audio_url else None,
                     Div(cls="card-body scrollable")(
                         # Transcript
-                        Div(cls="transcript-container")(
+                        Div(cls="transcript-container", id="transcript-container")(
                             *transcript_elements if transcript_elements else [P("Transcript is empty", cls="info-text")]
                         )
                     )
                 )
             ) if has_transcript else None
         ),
-        Script(audio_scrub_js) if has_transcript and audio_url else None
+        Script(audio_scrub_js) if has_transcript and audio_url else None,
+        Script(search_highlight_js)
     )
 
 
